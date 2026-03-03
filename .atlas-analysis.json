@@ -1,0 +1,143 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "Samay",
+  "projectDescription": "State-of-the-art foundational time-series models library for training and evaluation",
+  "theme": "aspen",
+  "primaryColor": "#4F46E5",
+  "lightColor": "#818CF8",
+  "darkColor": "#312E81",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/overview",
+              "concepts/models",
+              "concepts/datasets",
+              "concepts/evaluation"
+            ]
+          },
+          {
+            "group": "Models",
+            "pages": [
+              "models/lptm",
+              "models/moment",
+              "models/timesfm",
+              "models/chronos",
+              "models/moirai",
+              "models/tinytimemixer",
+              "models/timemoe",
+              "models/timesfm-2p5",
+              "models/chronos-bolt",
+              "models/chronos-2"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/zero-shot-forecasting",
+              "guides/fine-tuning",
+              "guides/anomaly-detection",
+              "guides/classification",
+              "guides/imputation",
+              "guides/quantization"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/base",
+              "api/models/lptm",
+              "api/models/moment",
+              "api/models/timesfm",
+              "api/models/chronos",
+              "api/models/moirai",
+              "api/models/tinytimemixer",
+              "api/models/timemoe"
+            ]
+          },
+          {
+            "group": "Datasets",
+            "pages": [
+              "api/datasets/base",
+              "api/datasets/lptm",
+              "api/datasets/moment",
+              "api/datasets/timesfm",
+              "api/datasets/chronos",
+              "api/datasets/moirai",
+              "api/datasets/tinytimemixer",
+              "api/datasets/timemoe"
+            ]
+          },
+          {
+            "group": "Metrics",
+            "pages": [
+              "api/metrics/overview",
+              "api/metrics/forecasting",
+              "api/metrics/probabilistic"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/utils/data-processing",
+              "api/utils/visualization",
+              "api/utils/quantization"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Unified API for 10+ foundational time-series models",
+    "Zero-shot forecasting and fine-tuning capabilities",
+    "Support for forecasting, anomaly detection, classification, and imputation",
+    "Comprehensive evaluation metrics (MSE, MAE, MASE, CRPS, etc.)",
+    "Pre-trained model integration from HuggingFace",
+    "Model quantization for efficient inference",
+    "Built-in dataset loaders for common benchmarks"
+  ],
+  "publicApiSurface": [
+    "samay.model.LPTMModel",
+    "samay.model.MomentModel",
+    "samay.model.TimesfmModel",
+    "samay.model.ChronosModel",
+    "samay.model.MoiraiTSModel",
+    "samay.model.TinyTimeMixerModel",
+    "samay.model.TimeMoEModel",
+    "samay.model.ChronosBoltModel",
+    "samay.model.Chronos_2_Model",
+    "samay.model.TimesFM_2p5_Model",
+    "samay.dataset.LPTMDataset",
+    "samay.dataset.MomentDataset",
+    "samay.dataset.TimesfmDataset",
+    "samay.dataset.ChronosDataset",
+    "samay.dataset.MoiraiDataset",
+    "samay.dataset.TinyTimeMixerDataset",
+    "samay.dataset.TimeMoEDataset",
+    "samay.metric.MSE",
+    "samay.metric.MAE",
+    "samay.metric.MASE",
+    "samay.metric.RMSE",
+    "samay.metric.MAPE",
+    "samay.metric.CRPS",
+    "samay.metric.MWSQ"
+  ]
+}
