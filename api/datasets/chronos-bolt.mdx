@@ -1,0 +1,139 @@
+---
+title: ChronosBoltDataset
+description: Dataset class for Amazon's Chronos-Bolt forecasting model
+---
+
+## Class Signature
+
+```python
+class ChronosBoltDataset(BaseDataset):
+    def __init__(
+        name: str = None,
+        datetime_col: str = "ds",
+        path: str = None,
+        boundaries: list = [0, 0, 0],
+        batch_size: int = 16,
+        mode: str = None,
+        stride: int = 10,
+        context_len: int = 512,
+        horizon_len: int = 64
+    )
+```
+
+Dataset wrapper for preparing time-series data for the Chronos-Bolt model.
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name (e.g., "ett", "etth1"). Used to automatically load datasets from predefined sources.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="ds">
+  Name of the datetime column in the CSV file.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to the CSV file containing time-series data.
+</ParamField>
+
+<ParamField path="boundaries" type="list[int]" default="[0, 0, 0]">
+  Train/val/test split boundaries. If [0,0,0], defaults are computed automatically.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="16">
+  Batch size for dataloaders.
+</ParamField>
+
+<ParamField path="mode" type="str" default="None">
+  Dataset mode: "train" or "test".
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride for windowing when creating sequences.
+</ParamField>
+
+<ParamField path="context_len" type="int" default="512">
+  Length of historical context to use for forecasting.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" default="64">
+  Forecast horizon length (number of future steps to predict).
+</ParamField>
+
+## Attributes
+
+<ResponseField name="max_col_num" type="int" default="64">
+  Maximum number of columns (channels) supported.
+</ResponseField>
+
+<ResponseField name="one_chunk_num" type="int">
+  Number of samples per chunk, computed as `(length_timeseries - context_len - horizon_len) // stride + 1`.
+</ResponseField>
+
+## Methods
+
+### get_data_loader()
+
+Returns a PyTorch DataLoader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+<ResponseField name="return" type="DataLoader">
+  PyTorch DataLoader configured with the specified batch size.
+</ResponseField>
+
+### __len__()
+
+Returns the number of samples in the dataset.
+
+```python
+def __len__()
+```
+
+<ResponseField name="return" type="int">
+  Total number of samples available.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.dataset import ChronosBoltDataset
+
+# Create dataset for training
+train_dataset = ChronosBoltDataset(
+    name="ett",
+    path="data/ETTh1.csv",
+    datetime_col="date",
+    mode="train",
+    context_len=512,
+    horizon_len=96,
+    batch_size=32,
+    stride=10
+)
+
+# Create dataset for testing
+test_dataset = ChronosBoltDataset(
+    name="ett",
+    path="data/ETTh1.csv",
+    datetime_col="date",
+    mode="test",
+    context_len=512,
+    horizon_len=96,
+    batch_size=32
+)
+
+# Get dataloader
+dataloader = train_dataset.get_data_loader()
+
+print(f"Dataset size: {len(train_dataset)}")
+print(f"Batches per epoch: {len(dataloader)}")
+```
+
+## Notes
+
+- The dataset automatically handles train/test splitting based on boundaries
+- Windowing is applied with the specified stride to create overlapping sequences
+- Maximum of 64 channels supported by default
+- Data is read from CSV and preprocessed automatically

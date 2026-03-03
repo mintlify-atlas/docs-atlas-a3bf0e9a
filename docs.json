@@ -81,7 +81,10 @@
               "api/models/chronos",
               "api/models/moirai",
               "api/models/tinytimemixer",
-              "api/models/timemoe"
+              "api/models/timemoe",
+              "api/models/timesfm-2p5",
+              "api/models/chronos-bolt",
+              "api/models/chronos-2"
             ]
           },
           {
@@ -94,7 +97,10 @@
               "api/datasets/chronos",
               "api/datasets/moirai",
               "api/datasets/tinytimemixer",
-              "api/datasets/timemoe"
+              "api/datasets/timemoe",
+              "api/datasets/timesfm-2p5",
+              "api/datasets/chronos-bolt",
+              "api/datasets/chronos-2"
             ]
           },
           {

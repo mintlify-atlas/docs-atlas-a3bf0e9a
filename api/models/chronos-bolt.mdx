@@ -1,0 +1,164 @@
+---
+title: "ChronosBoltModel"
+description: "Fast optimized variant of Amazon's Chronos for production deployments"
+---
+
+## Class Signature
+
+```python
+class ChronosBoltModel(Basemodel):
+    def __init__(self, config=None, repo=None)
+```
+
+The `ChronosBoltModel` class implements Chronos-Bolt, an optimized version of Amazon's Chronos designed for faster inference in production environments while maintaining forecasting accuracy.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary. Used when initializing a new model without pre-trained weights.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID. If provided, loads the pre-trained Chronos-Bolt model. If not provided, initializes a new model using the config.
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: ChronosBoltDataset, **kwargs)
+```
+
+Finetune the model on the given dataset.
+
+<ParamField path="dataset" type="ChronosBoltDataset" required>
+  Dataset for finetuning. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional keyword arguments (currently uses default hyperparameters: lr=1e-4, epochs=10).
+</ParamField>
+
+<ResponseField name="return" type="None">
+  The model is finetuned in-place.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(
+    dataset: ChronosBoltDataset,
+    horizon_len: int,
+    quantile_levels: list,
+    metric_only=False,
+    **kwargs
+)
+```
+
+Evaluate the Chronos-Bolt model on a dataset.
+
+<ParamField path="dataset" type="ChronosBoltDataset" required>
+  Dataset for evaluation. Use `get_data_loader()` to obtain the dataloader.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" required>
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="quantile_levels" type="list[float]" required>
+  Quantile levels used to compute quantile forecasts and scoring metrics (e.g., [0.1, 0.5, 0.9]).
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only a dict of metrics. If False, return metrics plus arrays.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **When `metric_only=True`:**
+  
+  Dictionary containing:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+  - `mwsq`: Mean Weighted Scaled Quantile Loss
+  - `crps`: Continuous Ranked Probability Score
+
+  **When `metric_only=False`:**
+  
+  Tuple of (metrics, trues, preds, histories, quantile_forecasts):
+  - `metrics`: Dictionary of metrics (as above)
+  - `trues`: Ground truth values
+  - `preds`: Mean predictions
+  - `histories`: Input context sequences
+  - `quantile_forecasts`: Quantile forecasts
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(
+    dataset: ChronosBoltDataset,
+    horizon_len: int,
+    quantile_levels: list,
+    **kwargs
+)
+```
+
+Plot forecast results produced by the Chronos-Bolt pipeline.
+
+<ParamField path="dataset" type="ChronosBoltDataset" required>
+  Dataset for plotting.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" required>
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="quantile_levels" type="list[float]" required>
+  List of quantile levels to request from the model (e.g., [0.1, 0.5, 0.9]).
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value. It displays visualizations.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import ChronosBoltModel
+from samay.dataset import ChronosBoltDataset
+
+# Load pre-trained model
+model = ChronosBoltModel(repo="amazon/chronos-bolt-small")
+
+# Prepare dataset
+dataset = ChronosBoltDataset(...)
+
+# Evaluate with quantiles
+quantile_levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+metrics = model.evaluate(
+    dataset,
+    horizon_len=96,
+    quantile_levels=quantile_levels,
+    metric_only=True
+)
+print(f"CRPS: {metrics['crps']}")
+```
+
+## Notes
+
+- Chronos-Bolt is optimized for faster inference compared to standard Chronos
+- Uses the same T5-based architecture with performance optimizations
+- Ideal for production deployments requiring low latency
+- Supports variable-length context and prediction horizons

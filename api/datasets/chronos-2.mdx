@@ -1,0 +1,150 @@
+---
+title: Chronos_2_Dataset
+description: Dataset class for Amazon's Chronos 2.0 forecasting model
+---
+
+## Class Signature
+
+```python
+class Chronos_2_Dataset(BaseDataset):
+    def __init__(
+        name: str = None,
+        datetime_col: str = None,
+        path: str = None,
+        batch_size: int = 16,
+        mode: str = "train",
+        boundaries: list = [0, 0, 0],
+        task_name: str = "evaluation",
+        stride: int = 10,
+        context_len: int = 512,
+        horizon_len: int = 96,
+        normalize: bool = True,
+        **kwargs
+    )
+```
+
+Dataset wrapper for preparing time-series data for the Chronos 2.0 model.
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name (e.g., "ett", "etth1").
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="None">
+  Name of the datetime column in the CSV file.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to the CSV file containing time-series data.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="16">
+  Batch size for dataloaders.
+</ParamField>
+
+<ParamField path="mode" type="str" default="train">
+  Dataset mode: "train" or "test".
+</ParamField>
+
+<ParamField path="boundaries" type="list[int]" default="[0, 0, 0]">
+  Train/val/test split boundaries. If [0,0,0], uses 50%/20%/30% split.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="evaluation">
+  Task name: "evaluation" or "finetuning".
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride for windowing when creating sequences.
+</ParamField>
+
+<ParamField path="context_len" type="int" default="512">
+  Length of historical context to use for forecasting.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" default="96">
+  Forecast horizon length. Automatically capped at 30% of dataset length.
+</ParamField>
+
+<ParamField path="normalize" type="bool" default="True">
+  Whether to normalize the data.
+</ParamField>
+
+## Attributes
+
+<ResponseField name="n_channels" type="int">
+  Number of channels (columns) in the time series, computed as `df.shape[1] - 1`.
+</ResponseField>
+
+## Methods
+
+### get_data_loader()
+
+Returns a PyTorch DataLoader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+<ResponseField name="return" type="DataLoader">
+  PyTorch DataLoader configured with the specified batch size.
+</ResponseField>
+
+### __len__()
+
+Returns the number of samples in the dataset.
+
+```python
+def __len__()
+```
+
+<ResponseField name="return" type="int">
+  Total number of samples available.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.dataset import Chronos_2_Dataset
+
+# Create dataset for evaluation
+eval_dataset = Chronos_2_Dataset(
+    name="ett",
+    path="data/ETTh1.csv",
+    datetime_col="date",
+    mode="test",
+    task_name="evaluation",
+    context_len=512,
+    horizon_len=96,
+    batch_size=32,
+    normalize=True
+)
+
+# Create dataset for fine-tuning
+train_dataset = Chronos_2_Dataset(
+    name="ett",
+    path="data/ETTh1.csv",
+    datetime_col="date",
+    mode="train",
+    task_name="finetuning",
+    context_len=512,
+    horizon_len=96,
+    batch_size=16,
+    normalize=True
+)
+
+# Get dataloader
+dataloader = eval_dataset.get_data_loader()
+
+print(f"Dataset size: {len(eval_dataset)}")
+print(f"Number of channels: {eval_dataset.n_channels}")
+```
+
+## Notes
+
+- Horizon length is automatically capped at 30% of the dataset length to prevent overfitting
+- Default boundaries use 50%/20%/30% split for train/val/test if not specified
+- Data normalization is applied by default
+- Datetime column is dropped after reading if specified
+- Supports both evaluation and fine-tuning tasks

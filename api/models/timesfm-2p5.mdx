@@ -1,0 +1,133 @@
+---
+title: "TimesFM_2p5_Model"
+description: "Next generation TimesFM with improved performance and capabilities"
+---
+
+## Class Signature
+
+```python
+class TimesFM_2p5_Model(Basemodel):
+    def __init__(self, config=None, repo=None, **kwargs)
+```
+
+The `TimesFM_2p5_Model` class implements TimesFM 2.5, the next generation of Google's Time-Series Foundation Model with enhanced forecasting capabilities and improved accuracy.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary using ForecastConfig parameters. Required for model compilation.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID. If provided, loads the pre-trained TimesFM 2.5 model. If not provided, initializes a new model instance.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Additional keyword arguments passed to the base class.
+</ParamField>
+
+## Properties
+
+<ResponseField name="quantiles" type="list[float]">
+  Quantile levels configured in the model, accessed from `model.model.config.quantiles`.
+</ResponseField>
+
+## Methods
+
+### evaluate()
+
+```python
+def evaluate(
+    dataset: TimesFM_2p5_Dataset,
+    metric_only: bool = False,
+    **kwargs
+)
+```
+
+Evaluate the TimesFM 2.5 model on a dataset.
+
+<ParamField path="dataset" type="TimesFM_2p5_Dataset" required>
+  Dataset containing the input data and relevant functions like dataloaders.
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only metrics. If False, return metrics plus arrays.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **When `metric_only=True`:**
+  
+  Dictionary containing evaluation metrics:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+  - `mwsq`: Mean Weighted Scaled Quantile Loss
+  - `crps`: Continuous Ranked Probability Score
+
+  **When `metric_only=False`:**
+  
+  Tuple of (metrics, trues, preds, histories):
+  - `metrics`: Dictionary containing evaluation metrics (as above)
+  - `trues`: True values of shape (batch_size, n_channels, horizon_len)
+  - `preds`: Predicted values of shape (batch_size, n_channels, horizon_len)
+  - `histories`: Historical context values of shape (batch_size, n_channels, context_len)
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import TimesFM_2p5_Model
+from samay.dataset import TimesFM_2p5_Dataset
+
+# Load pre-trained model with config
+config = {
+    "context_len": 512,
+    "horizon_len": 96,
+    "input_patch_len": 32,
+    "output_patch_len": 128,
+    "quantiles": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+}
+
+model = TimesFM_2p5_Model(
+    config=config,
+    repo="google/timesfm-2.5-200m-pytorch"
+)
+
+# Prepare dataset
+dataset = TimesFM_2p5_Dataset(
+    name="ett",
+    path="data/ETTh1.csv",
+    datetime_col="date",
+    context_len=512,
+    horizon_len=96,
+    mode="test"
+)
+
+# Evaluate with metrics only
+metrics = model.evaluate(dataset, metric_only=True)
+print(f"MSE: {metrics['mse']:.4f}")
+print(f"MAE: {metrics['mae']:.4f}")
+print(f"CRPS: {metrics['crps']:.4f}")
+
+# Get full evaluation results
+metrics, trues, preds, histories = model.evaluate(dataset, metric_only=False)
+
+print(f"True values shape: {trues.shape}")
+print(f"Predictions shape: {preds.shape}")
+print(f"Histories shape: {histories.shape}")
+```
+
+## Notes
+
+- TimesFM 2.5 requires a config dictionary with ForecastConfig parameters for model compilation
+- The model must be compiled with `model.compile(config)` after initialization
+- Supports probabilistic forecasting through quantile predictions
+- Improved over TimesFM 1.0 with better accuracy and faster inference
+- The model is evaluated in eval mode and moved to the appropriate device automatically
+- Context length and horizon length are determined by the dataset configuration
