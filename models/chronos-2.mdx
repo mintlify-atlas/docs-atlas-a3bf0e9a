@@ -1,0 +1,173 @@
+---
+title: Chronos 2
+description: Next generation Chronos with improved architecture and capabilities
+---
+
+## Overview
+
+Chronos 2 is the latest version of the Chronos family, featuring an improved architecture with better handling of long sequences and enhanced probabilistic forecasting capabilities.
+
+**Repository:** [amazon/chronos-2](https://huggingface.co/amazon/chronos-2)
+
+## Loading the Model
+
+```python
+from samay.model import Chronos_2_Model
+
+repo = "amazon/chronos-2"
+model = Chronos_2_Model(repo=repo)
+```
+
+## Loading Dataset
+
+```python
+from samay.dataset import Chronos_2_Dataset
+
+train_dataset = Chronos_2_Dataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    batch_size=16
+)
+
+val_dataset = Chronos_2_Dataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    batch_size=16
+)
+```
+
+## Zero-Shot Forecasting
+
+```python
+metrics = model.evaluate(val_dataset, metric_only=True)
+print(metrics)
+# {'mse': ..., 'mae': ..., 'mase': ..., 'rmse': ..., 'crps': ...}
+```
+
+## Fine-tuning
+
+```python
+model.finetune(
+    train_dataset,
+    epoch=5  # Number of training epochs
+)
+
+# Evaluate after fine-tuning
+metrics = model.evaluate(val_dataset, metric_only=True)
+```
+
+## Visualization
+
+```python
+model.plot(val_dataset)
+```
+
+## Key Improvements over Chronos 1
+
+1. **Better Long Sequence Handling**: Improved architecture for longer context windows
+2. **Enhanced Quantile Predictions**: More accurate uncertainty estimates
+3. **Autoregressive Forecasting**: Better handling of very long forecast horizons
+4. **Improved Training**: More stable and efficient training process
+
+## Autoregressive Forecasting
+
+Chronos 2 can handle very long forecast horizons through autoregressive prediction:
+
+```python
+# The model automatically uses autoregressive forecasting
+# when horizon_len exceeds max_patches * patch_size
+
+output = model.model(
+    context=input_seq,
+    num_output_patches=current_horizon_patch
+)
+```
+
+The model:
+1. Predicts up to `max_patches` at a time
+2. Uses median predictions as input for next iteration
+3. Concatenates predictions for full horizon
+
+## Architecture Details
+
+```python
+# Model configuration details
+max_patches = model.model.chronos_config.max_output_patches
+patch_size = model.model.chronos_config.output_patch_size
+quantiles = model.model.chronos_config.quantiles
+```
+
+## Handling Different Horizon Lengths
+
+<Tabs>
+  <Tab title="Short Horizons">
+```python
+# For horizons within max_patches * patch_size
+# Direct prediction in one step
+output = model.model(
+    context=context,
+    num_output_patches=num_patches,
+    future_target=target  # For training
+)
+```
+  </Tab>
+  <Tab title="Long Horizons">
+```python
+# For longer horizons
+# Automatic autoregressive prediction
+# Model handles this internally during evaluate()
+metrics = model.evaluate(val_dataset)
+```
+  </Tab>
+</Tabs>
+
+## Probabilistic Forecasting
+
+Chronos 2 provides comprehensive quantile forecasts:
+
+```python
+# During evaluation, returns full quantile distribution
+metrics, trues, preds, histories, quantiles = model.evaluate(
+    val_dataset,
+    metric_only=False
+)
+
+# quantiles shape: (num_quantiles, batch_size, channels, horizon)
+```
+
+## Available Metrics
+
+Chronos 2 supports comprehensive evaluation:
+
+- **MSE**: Mean Squared Error
+- **MAE**: Mean Absolute Error
+- **MASE**: Mean Absolute Scaled Error
+- **MAPE**: Mean Absolute Percentage Error
+- **RMSE**: Root Mean Squared Error
+- **NRMSE**: Normalized RMSE
+- **SMAPE**: Symmetric MAPE
+- **MSIS**: Mean Scaled Interval Score
+- **ND**: Normalized Deviation
+- **MWSQ**: Mean Weighted Sum of Quantiles
+- **CRPS**: Continuous Ranked Probability Score
+
+## When to Use Chronos 2
+
+- When you need the latest improvements from Amazon Research
+- For very long forecast horizons
+- When uncertainty quantification is critical
+- For production deployments requiring robust performance
+- When you need state-of-the-art accuracy
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/chronos2.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/chronos2.ipynb)
+
+<Note>
+Chronos 2 represents the state-of-the-art in the Chronos model family, with significant improvements in handling diverse forecasting scenarios.
+</Note>

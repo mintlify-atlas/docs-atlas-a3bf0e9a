@@ -1,0 +1,149 @@
+---
+title: "Basemodel"
+description: "Base class for all time series foundation models in Samay"
+---
+
+## Class Signature
+
+```python
+class Basemodel:
+    def __init__(self, config=None, repo=None)
+```
+
+The `Basemodel` class serves as the abstract base class for all time series foundation models in Samay. All model implementations inherit from this class and must implement its abstract methods.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary containing model-specific parameters.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID for loading pre-trained models.
+</ParamField>
+
+## Attributes
+
+<ResponseField name="config" type="dict">
+  Stores the model configuration passed during initialization.
+</ResponseField>
+
+<ResponseField name="device" type="torch.device">
+  The device (CPU or GPU) on which the model will run. Automatically selects the least used GPU if available, otherwise defaults to CPU.
+</ResponseField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: BaseDataset, **kwargs)
+```
+
+Finetune the model on the given dataset. This is an abstract method that concrete model classes must implement.
+
+<ParamField path="dataset" type="BaseDataset" required>
+  Dataset used for finetuning.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional keyword arguments for finetuning:
+  - `lr` (float): Learning rate
+  - `epoch` (int): Number of training epochs
+  - Additional model-specific parameters
+</ParamField>
+
+<ResponseField name="return" type="Any">
+  Model or training result produced by the finetune operation. The exact return type is defined by concrete model implementations.
+</ResponseField>
+
+**Raises:**
+- `NotImplementedError`: If a subclass does not implement this method.
+
+---
+
+### forecast()
+
+```python
+def forecast(input, **kwargs)
+```
+
+Generate forecast(s) from input data.
+
+<ParamField path="input" type="Any" required>
+  Input data for forecasting (e.g., torch.Tensor, numpy array, or model-specific input structure).
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional keyword arguments for forecasting (model-specific).
+</ParamField>
+
+<ResponseField name="return" type="Any">
+  Forecast outputs. The concrete model defines the exact format (for example, mean forecasts, quantiles, or full distribution).
+</ResponseField>
+
+**Raises:**
+- `NotImplementedError`: If a subclass does not implement this method.
+
+---
+
+### evaluate()
+
+```python
+def evaluate(dataset: BaseDataset, **kwargs)
+```
+
+Evaluate the model on a dataset.
+
+<ParamField path="dataset" type="BaseDataset" required>
+  Dataset used for evaluation.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional evaluation arguments:
+  - `metric_only` (bool): If True, return only metrics dictionary
+  - Additional model-specific parameters
+</ParamField>
+
+<ResponseField name="return" type="Any">
+  Evaluation metrics or (metrics, details) tuple as defined by the concrete model implementation.
+</ResponseField>
+
+**Raises:**
+- `NotImplementedError`: If a subclass does not implement this method.
+
+---
+
+### save()
+
+```python
+def save(path)
+```
+
+Save the model to disk.
+
+<ParamField path="path" type="str" required>
+  Filesystem path where model artifacts should be saved.
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value.
+</ResponseField>
+
+**Raises:**
+- `NotImplementedError`: If a subclass does not implement this method.
+
+## Usage Example
+
+```python
+from samay.model import Basemodel
+
+# Basemodel is abstract and cannot be instantiated directly
+# Use specific model implementations like ChronosModel, MomentModel, etc.
+```
+
+## Notes
+
+- The `Basemodel` class automatically detects and uses the least utilized GPU when available
+- All concrete model implementations must override the abstract methods: `finetune()`, `forecast()`, `evaluate()`, and `save()`
+- Device selection happens automatically during initialization based on GPU availability

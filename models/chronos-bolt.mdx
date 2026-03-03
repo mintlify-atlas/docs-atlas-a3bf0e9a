@@ -1,0 +1,159 @@
+---
+title: Chronos-Bolt
+description: Fast and efficient variant of Chronos for production deployment
+---
+
+## Overview
+
+Chronos-Bolt is an optimized version of Chronos designed for fast inference while maintaining high accuracy. It uses knowledge distillation to create a more efficient model suitable for production environments.
+
+**Repository:** [amazon/chronos-bolt-small](https://huggingface.co/amazon/chronos-bolt-small)
+
+## Loading the Model
+
+```python
+from samay.model import ChronosBoltModel
+
+repo = "amazon/chronos-bolt-small"
+model = ChronosBoltModel(repo=repo)
+```
+
+<Info>
+Chronos-Bolt is available in multiple sizes: `chronos-bolt-tiny`, `chronos-bolt-mini`, `chronos-bolt-small`, `chronos-bolt-base`.
+</Info>
+
+## Loading Dataset
+
+```python
+from samay.dataset import ChronosBoltDataset
+
+train_dataset = ChronosBoltDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    batch_size=8
+)
+
+val_dataset = ChronosBoltDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    batch_size=8
+)
+```
+
+## Zero-Shot Forecasting
+
+```python
+metrics = model.evaluate(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=True
+)
+print(metrics)
+```
+
+## Fine-tuning
+
+```python
+model.finetune(train_dataset)
+
+# Evaluate the fine-tuned model
+metrics = model.evaluate(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=True
+)
+```
+
+## Visualization
+
+```python
+model.plot(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9]
+)
+```
+
+## Key Differences from Chronos
+
+| Feature | Chronos | Chronos-Bolt |
+|---------|---------|-------------|
+| **Speed** | Baseline | 2-3x faster |
+| **Model Size** | Larger | More compact |
+| **Accuracy** | Highest | Very competitive |
+| **Use Case** | Research & high accuracy | Production & speed |
+
+## Performance Characteristics
+
+- **Faster Inference**: 2-3x speedup compared to standard Chronos
+- **Smaller Memory Footprint**: More efficient memory usage
+- **Competitive Accuracy**: Maintains >95% of full Chronos accuracy
+- **Production-Ready**: Optimized for deployment
+
+## When to Use Chronos-Bolt
+
+- When you need fast inference in production
+- For real-time forecasting applications
+- When computational resources are limited
+- For edge deployment scenarios
+- When you need a good balance of speed and accuracy
+
+## Model Variants
+
+<Tabs>
+  <Tab title="Chronos-Bolt-Tiny">
+```python
+repo = "amazon/chronos-bolt-tiny"
+model = ChronosBoltModel(repo=repo)
+# Fastest, smallest model for edge devices
+```
+  </Tab>
+  <Tab title="Chronos-Bolt-Mini">
+```python
+repo = "amazon/chronos-bolt-mini"
+model = ChronosBoltModel(repo=repo)
+# Balanced speed and accuracy
+```
+  </Tab>
+  <Tab title="Chronos-Bolt-Small">
+```python
+repo = "amazon/chronos-bolt-small"
+model = ChronosBoltModel(repo=repo)
+# Good accuracy with efficient inference
+```
+  </Tab>
+  <Tab title="Chronos-Bolt-Base">
+```python
+repo = "amazon/chronos-bolt-base"
+model = ChronosBoltModel(repo=repo)
+# Best accuracy in Bolt series
+```
+  </Tab>
+</Tabs>
+
+## Quantile Forecasting
+
+Like Chronos, Chronos-Bolt supports probabilistic forecasting:
+
+```python
+quantile_outputs, mean = model.pipeline.predict_quantiles(
+    context=context,
+    prediction_length=64,
+    quantile_levels=[0.1, 0.5, 0.9]
+)
+```
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/chronosbolt.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/chronosbolt.ipynb)
+
+<Note>
+Chronos-Bolt is ideal for production deployments where inference speed is critical while maintaining high forecasting accuracy.
+</Note>

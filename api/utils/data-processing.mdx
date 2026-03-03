@@ -1,0 +1,352 @@
+---
+title: Data Processing Utilities
+description: Utility functions for data loading, conversion, and processing
+---
+
+The `samay.utils` module provides utility functions for working with time series datasets and data formats.
+
+## Dataset Management
+
+### get_gifteval_datasets
+
+Get hierarchical and direct datasets from the GIFT-Eval benchmark.
+
+```python
+from samay.utils import get_gifteval_datasets
+
+datasets = get_gifteval_datasets(path)
+```
+
+<ParamField path="path" type="str" required>
+  Path to the directory containing GIFT-Eval datasets
+</ParamField>
+
+<ResponseField name="datasets" type="dict">
+  Dictionary mapping dataset paths to tuples of `(frequency, size_in_MB)`
+</ResponseField>
+
+#### Example
+
+```python
+from samay.utils import get_gifteval_datasets
+
+datasets = get_gifteval_datasets("/path/to/gifteval")
+for path, (freq, size) in datasets.items():
+    print(f"{path}: {freq} ({size:.2f} MB)")
+```
+
+---
+
+### get_monash_datasets
+
+Get datasets from the Monash Time Series Forecasting Archive.
+
+```python
+from samay.utils import get_monash_datasets
+
+datasets = get_monash_datasets(path)
+```
+
+<ParamField path="path" type="str" required>
+  Path to the directory containing Monash datasets
+</ParamField>
+
+<ResponseField name="datasets" type="dict">
+  Dictionary mapping dataset paths to tuples of `(inferred_frequency, size_in_MB)`, sorted by file size
+</ResponseField>
+
+#### Example
+
+```python
+from samay.utils import get_monash_datasets
+
+datasets = get_monash_datasets("/path/to/monash")
+for path, (freq, size) in datasets.items():
+    print(f"{path}: {freq} ({size:.2f} MB)")
+```
+
+---
+
+### get_tsb_ad_datasets
+
+Read TSB-AD (Time Series Benchmark for Anomaly Detection) datasets stored as CSV files.
+
+```python
+from samay.utils import get_tsb_ad_datasets
+
+datasets = get_tsb_ad_datasets(path)
+```
+
+<ParamField path="path" type="str" required>
+  Path to the directory containing TSB-AD CSV files
+</ParamField>
+
+<ResponseField name="datasets" type="dict">
+  Dictionary mapping absolute file paths to tuples of `(inferred_freq_or_None, size_in_MB)`
+</ResponseField>
+
+#### Example
+
+```python
+from samay.utils import get_tsb_ad_datasets
+
+datasets = get_tsb_ad_datasets("/path/to/TSB-AD-U")
+for path, (freq, size) in datasets.items():
+    freq_str = freq if freq else "unknown"
+    print(f"{path}: {freq_str} ({size:.2f} MB)")
+```
+
+---
+
+## Data Conversion
+
+### ts_to_csv
+
+Convert a `.ts` file (time series format) to a `.csv` file.
+
+```python
+from samay.utils import ts_to_csv
+
+ts_to_csv(ts_file, csv_file, replace_missing_vals_with="NaN")
+```
+
+<ParamField path="ts_file" type="str" required>
+  Path to the input `.ts` file
+</ParamField>
+
+<ParamField path="csv_file" type="str" required>
+  Path to the output `.csv` file
+</ParamField>
+
+<ParamField path="replace_missing_vals_with" type="str" default="NaN">
+  Value to replace missing values with in the `.ts` file
+</ParamField>
+
+#### Example
+
+```python
+from samay.utils import ts_to_csv
+
+ts_to_csv(
+    ts_file="data/ECG5000_TRAIN.ts",
+    csv_file="data/ECG5000_TRAIN.csv",
+    replace_missing_vals_with="NaN"
+)
+```
+
+---
+
+### arrow_to_csv
+
+Convert Arrow format datasets to CSV.
+
+```python
+from samay.utils import arrow_to_csv
+
+arrow_to_csv(arrow_dir, freq=None)
+```
+
+<ParamField path="arrow_dir" type="str" required>
+  Path to the directory containing Arrow format data
+</ParamField>
+
+<ParamField path="freq" type="str" optional>
+  Frequency string for the time series (e.g., "1H", "1D", "1M")
+</ParamField>
+
+#### Example
+
+```python
+from samay.utils import arrow_to_csv
+
+arrow_to_csv(
+    arrow_dir="/path/to/arrow/data",
+    freq="1H"  # Hourly frequency
+)
+```
+
+---
+
+### get_multivariate_data
+
+Extract multivariate time series data from a DataFrame.
+
+```python
+from samay.utils import get_multivariate_data
+
+data, labels = get_multivariate_data(dataframe, label_col="label")
+```
+
+<ParamField path="dataframe" type="pd.DataFrame" required>
+  DataFrame containing the multivariate time series data
+</ParamField>
+
+<ParamField path="label_col" type="str" default="label">
+  Name of the column containing labels
+</ParamField>
+
+<ResponseField name="data" type="np.ndarray">
+  Multivariate data array of shape `(num_samples, num_channels, num_timesteps)`
+</ResponseField>
+
+<ResponseField name="labels" type="np.ndarray">
+  Array of labels
+</ResponseField>
+
+#### Example
+
+```python
+import pandas as pd
+from samay.utils import get_multivariate_data
+
+df = pd.read_csv("data.csv")
+data, labels = get_multivariate_data(df, label_col="label")
+
+print(f"Data shape: {data.shape}")  # (num_samples, num_channels, num_timesteps)
+print(f"Labels shape: {labels.shape}")
+```
+
+---
+
+## Configuration Management
+
+### load_args
+
+Load arguments from a JSON file.
+
+```python
+from samay.utils import load_args
+
+args = load_args(file_path)
+```
+
+<ParamField path="file_path" type="str" required>
+  Path to the JSON file containing arguments
+</ParamField>
+
+<ResponseField name="args" type="dict">
+  Dictionary of loaded arguments
+</ResponseField>
+
+---
+
+### read_yaml
+
+Read a YAML configuration file.
+
+```python
+from samay.utils import read_yaml
+
+config = read_yaml(file_path)
+```
+
+<ParamField path="file_path" type="str" required>
+  Path to the YAML file
+</ParamField>
+
+<ResponseField name="config" type="dict">
+  Dictionary containing the YAML configuration
+</ResponseField>
+
+---
+
+### prep_finetune_config
+
+Prepare fine-tuning configuration from a YAML file or dictionary.
+
+```python
+from samay.utils import prep_finetune_config
+
+config = prep_finetune_config(file_path=None, config=None)
+```
+
+<ParamField path="file_path" type="str" optional>
+  Path to the YAML configuration file
+</ParamField>
+
+<ParamField path="config" type="dict" optional>
+  Configuration dictionary (alternative to `file_path`)
+</ParamField>
+
+<ResponseField name="config" type="dict">
+  Processed configuration dictionary with keys:
+  - `batch_size`: Batch size for training
+  - `max_epochs`: Maximum number of epochs
+  - `seed`: Random seed
+  - `tf32`: TF32 setting
+  - `mod_torch`: PyTorch trainer modifications
+</ResponseField>
+
+<Note>
+Either `file_path` or `config` must be provided, but not both.
+</Note>
+
+---
+
+## GPU Utilities
+
+### get_least_used_gpu
+
+Get the GPU device with the least memory usage.
+
+```python
+from samay.utils import get_least_used_gpu
+
+gpu_id = get_least_used_gpu()
+```
+
+<ResponseField name="gpu_id" type="int">
+  Index of the least used GPU device, or `-1` if no GPU is available or if an error occurs
+</ResponseField>
+
+#### Example
+
+```python
+import torch
+from samay.utils import get_least_used_gpu
+
+gpu_id = get_least_used_gpu()
+if gpu_id >= 0:
+    device = torch.device(f"cuda:{gpu_id}")
+    print(f"Using GPU {gpu_id}")
+else:
+    device = torch.device("cpu")
+    print("Using CPU")
+```
+
+---
+
+## DataLoader Utilities
+
+### cleanup_dataloader
+
+Best-effort shutdown for PyTorch DataLoader workers to prevent resource leaks.
+
+```python
+from samay.utils import cleanup_dataloader
+
+cleanup_dataloader(loader)
+```
+
+<ParamField path="loader" type="torch.utils.data.DataLoader" required>
+  PyTorch DataLoader to clean up
+</ParamField>
+
+#### Example
+
+```python
+from torch.utils.data import DataLoader
+from samay.utils import cleanup_dataloader
+
+# Create and use dataloader
+loader = DataLoader(dataset, batch_size=32, num_workers=4)
+
+# Train/evaluate...
+
+# Clean up when done
+cleanup_dataloader(loader)
+```
+
+<Note>
+This function stops worker processes and queues, preventing semaphore leaks in multi-process DataLoaders.
+</Note>

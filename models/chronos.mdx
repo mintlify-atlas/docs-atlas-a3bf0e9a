@@ -1,0 +1,135 @@
+---
+title: Chronos
+description: Pretrained probabilistic time series model based on language model architectures
+---
+
+## Overview
+
+Chronos is a family of pretrained probabilistic time series models leveraging transformer architectures from language modeling. It tokenizes time series values and trains them using a language modeling approach.
+
+**Paper:** [Chronos: Learning the Language of Time Series](https://arxiv.org/abs/2403.07815)
+
+## Configuration Parameters
+
+```python
+# When loading from repository
+repo = "amazon/chronos-t5-small"  # or "chronos-t5-base", "chronos-t5-large"
+
+# For custom configuration (when not using pretrained model)
+config = {
+    "context_length": 512,
+    "prediction_length": 64,
+    "num_samples": 20,
+    "temperature": 1.0,
+}
+```
+
+## Loading the Model
+
+<Tabs>
+  <Tab title="From Pretrained">
+```python
+from samay.model import ChronosModel
+
+repo = "amazon/chronos-t5-small"
+model = ChronosModel(repo=repo)
+```
+  </Tab>
+  <Tab title="From Config">
+```python
+from samay.model import ChronosModel
+from samay.models.chronosforecasting.chronos.chronos import ChronosConfig
+
+model = ChronosModel(config=ChronosConfig(**config))
+```
+  </Tab>
+</Tabs>
+
+<Info>
+Chronos is available in multiple sizes: `t5-tiny`, `t5-mini`, `t5-small`, `t5-base`, and `t5-large`.
+</Info>
+
+## Loading Dataset
+
+```python
+from samay.dataset import ChronosDataset
+
+train_dataset = ChronosDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    batch_size=8
+)
+
+val_dataset = ChronosDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    batch_size=8
+)
+```
+
+## Zero-Shot Forecasting
+
+```python
+metrics = model.evaluate(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=True
+)
+```
+
+## Fine-tuning
+
+```python
+model.finetune(train_dataset)
+
+# Evaluate the finetuned model
+metrics = model.evaluate(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=True
+)
+```
+
+<Note>
+Fine-tuning trains the underlying T5 model on your specific dataset while preserving the probabilistic forecasting capabilities.
+</Note>
+
+## Visualization
+
+```python
+model.plot(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9]
+)
+```
+
+## Probabilistic Forecasting
+
+Chronos provides probabilistic forecasts through quantiles:
+
+```python
+quantile_forecasts, mean_forecast = model.pipeline.predict_quantiles(
+    context=input_seq,
+    prediction_length=64,
+    quantile_levels=[0.1, 0.5, 0.9]
+)
+```
+
+## Key Features
+
+- **Language Model Architecture**: Uses T5 transformer architecture
+- **Tokenization**: Converts time series values into tokens
+- **Probabilistic**: Provides quantile forecasts for uncertainty estimation
+- **Scalable**: Available in multiple model sizes
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/chronos.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/chronos.ipynb)

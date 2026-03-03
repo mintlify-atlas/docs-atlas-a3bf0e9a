@@ -1,0 +1,160 @@
+---
+title: "TinyTimeMixerModel"
+description: "IBM's TinyTimeMixer lightweight forecasting model for edge deployment"
+---
+
+## Class Signature
+
+```python
+class TinyTimeMixerModel(Basemodel):
+    def __init__(self, config=None, repo=None)
+```
+
+The `TinyTimeMixerModel` class implements IBM's TinyTimeMixer, a lightweight and efficient time series forecasting model designed for edge deployment and resource-constrained environments.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" required>
+  Model configuration dictionary. Must include context_len and horizon_len.
+</ParamField>
+
+<ParamField path="repo" type="str" required>
+  Hugging Face model repository ID. The model automatically selects the appropriate revision based on context_len and horizon_len.
+</ParamField>
+
+## Configuration Parameters
+
+<ParamField path="context_len" type="int" required>
+  Length of the input context window (e.g., 512).
+</ParamField>
+
+<ParamField path="horizon_len" type="int" required>
+  Forecast horizon length. The model will select the closest available horizon from [96, 192, 336, 720].
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: TinyTimeMixerDataset, **kwargs)
+```
+
+Finetune the model on the given dataset.
+
+<ParamField path="dataset" type="TinyTimeMixerDataset" required>
+  Dataset for finetuning. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional keyword arguments (currently uses default hyperparameters: lr=1e-4, epochs=5).
+</ParamField>
+
+<ResponseField name="return" type="None">
+  The model is finetuned in-place.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(dataset: TinyTimeMixerDataset, metric_only=False, **kwargs)
+```
+
+Evaluate the model on a dataset.
+
+<ParamField path="dataset" type="TinyTimeMixerDataset" required>
+  Dataset for evaluation. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only metrics.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **When `metric_only=True`:**
+  
+  Dictionary containing:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+
+  **When `metric_only=False`:**
+  
+  Tuple of (metrics, trues, preds, histories):
+  - `metrics`: Dictionary of metrics (as above)
+  - `trues`: Ground truth values, shape (num_samples, num_ts, horizon_len)
+  - `preds`: Predictions, shape (num_samples, num_ts, horizon_len)
+  - `histories`: Historical context, shape (num_samples, num_ts, context_len)
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(dataset: TinyTimeMixerDataset, **kwargs)
+```
+
+Plot the forecast results.
+
+<ParamField path="dataset" type="TinyTimeMixerDataset" required>
+  Dataset for plotting. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Additional keyword arguments forwarded to visualization.
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value. It displays visualizations.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import TinyTimeMixerModel
+from samay.dataset import TinyTimeMixerDataset
+
+# Initialize model
+config = {
+    "context_len": 512,
+    "horizon_len": 96
+}
+model = TinyTimeMixerModel(
+    config=config,
+    repo="ibm/tinytimemixer"
+)
+
+# Prepare dataset
+dataset = TinyTimeMixerDataset(...)
+
+# Finetune
+model.finetune(dataset)
+
+# Evaluate
+metrics, trues, preds, histories = model.evaluate(
+    dataset,
+    metric_only=False
+)
+print(f"MAE: {metrics['mae']}")
+
+# Visualize
+model.plot(dataset)
+```
+
+## Notes
+
+- TinyTimeMixer is optimized for efficiency and edge deployment
+- The model automatically selects the appropriate checkpoint revision based on your specified horizon_len
+- Available horizon lengths are 96, 192, 336, and 720 - the model uses the closest larger value
+- The default context length of 512 with horizon 96 uses the "main" revision
+- Data is automatically permuted to match the expected input format (batch, channels, time)
+- The model requires a repository ID - it cannot be initialized without pre-trained weights

@@ -1,122 +1,120 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Samay",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#4F46E5",
+    "light": "#818CF8",
+    "dark": "#312E81"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/AdityaLab/Samay"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/AdityaLab/Samay"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/overview",
+              "concepts/models",
+              "concepts/datasets",
+              "concepts/evaluation"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Models",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "models/lptm",
+              "models/moment",
+              "models/timesfm",
+              "models/chronos",
+              "models/moirai",
+              "models/tinytimemixer",
+              "models/timemoe",
+              "models/timesfm-2p5",
+              "models/chronos-bolt",
+              "models/chronos-2"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Guides",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/zero-shot-forecasting",
+              "guides/fine-tuning",
+              "guides/anomaly-detection",
+              "guides/classification",
+              "guides/imputation",
+              "guides/quantization"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Models",
             "pages": [
-              "api-reference/introduction"
+              "api/models/base",
+              "api/models/lptm",
+              "api/models/moment",
+              "api/models/timesfm",
+              "api/models/chronos",
+              "api/models/moirai",
+              "api/models/tinytimemixer",
+              "api/models/timemoe"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Datasets",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/datasets/base",
+              "api/datasets/lptm",
+              "api/datasets/moment",
+              "api/datasets/timesfm",
+              "api/datasets/chronos",
+              "api/datasets/moirai",
+              "api/datasets/tinytimemixer",
+              "api/datasets/timemoe"
+            ]
+          },
+          {
+            "group": "Metrics",
+            "pages": [
+              "api/metrics/overview",
+              "api/metrics/forecasting",
+              "api/metrics/probabilistic"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/utils/data-processing",
+              "api/utils/visualization",
+              "api/utils/quantization"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

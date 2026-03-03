@@ -1,0 +1,174 @@
+---
+title: Installation
+description: Install Samay and get started with time-series foundation models
+---
+
+## Installation from GitHub
+
+The easiest way to install Samay is directly from GitHub using pip:
+
+<Steps>
+  <Step title="Install via pip">
+    Run the following command to install Samay and all its dependencies:
+    
+    ```bash
+    pip install git+https://github.com/AdityaLab/Samay.git
+    ```
+    
+    This will install the latest version from the main branch.
+  </Step>
+  
+  <Step title="Verify installation">
+    Test that Samay is correctly installed:
+    
+    ```python
+    from samay.model import LPTMModel
+    from samay.dataset import LPTMDataset
+    
+    print("Samay installed successfully!")
+    ```
+  </Step>
+</Steps>
+
+## Development Installation
+
+If you want to contribute to Samay or customize it for your needs, follow these steps for a development installation:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/AdityaLab/Samay.git
+    cd Samay
+    ```
+  </Step>
+  
+  <Step title="Install uv (recommended)">
+    Samay uses `uv` for fast dependency management:
+    
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+    
+    <Note>
+      `uv` is a fast Python package installer and resolver. It's optional but highly recommended for development.
+    </Note>
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    uv sync --reinstall
+    ```
+    
+    This will create a virtual environment and install all required dependencies.
+  </Step>
+  
+  <Step title="Activate the environment">
+    ```bash
+    source .venv/bin/activate  # On Linux/MacOS
+    # OR
+    .venv\Scripts\activate  # On Windows (when supported)
+    ```
+  </Step>
+</Steps>
+
+## System Requirements
+
+<AccordionGroup>
+  <Accordion title="Python Version">
+    Samay is tested and supported on:
+    - Python 3.11
+    - Python 3.12
+    - Python 3.13
+    
+    <Warning>
+      Python 3.10 and earlier are not supported.
+    </Warning>
+  </Accordion>
+  
+  <Accordion title="Operating Systems">
+    Currently supported:
+    - **Linux** (CPU + GPU)
+    - **MacOS** (CPU only)
+    
+    Planned support:
+    - Windows
+    - Apple Silicon GPU
+  </Accordion>
+  
+  <Accordion title="Hardware Requirements">
+    - **CPU**: Any modern multi-core processor
+    - **RAM**: Minimum 8GB (16GB+ recommended for larger models)
+    - **GPU**: NVIDIA GPUs with CUDA support (optional but recommended)
+    - **Storage**: At least 5GB for models and datasets
+  </Accordion>
+  
+  <Accordion title="Dependencies">
+    Key dependencies installed automatically:
+    - PyTorch >= 2.5.1
+    - transformers >= 4.47.0
+    - gluonts >= 0.16.0
+    - pandas >= 2.2.3
+    - numpy >= 2.1.3
+    - scikit-learn >= 1.5.2
+    - chronos-forecasting >= 1.4.1
+    - lightning >= 2.5.1
+    
+    See `pyproject.toml` for the complete list.
+  </Accordion>
+</AccordionGroup>
+
+## GPU Support
+
+To use Samay with GPU acceleration:
+
+1. Ensure you have NVIDIA drivers installed
+2. Install CUDA toolkit (version compatible with PyTorch)
+3. Samay will automatically detect and use available GPUs
+
+```python
+import torch
+print(f"CUDA available: {torch.cuda.is_available()}")
+print(f"CUDA device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None'}")
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import errors">
+    If you encounter import errors, ensure you're using a supported Python version:
+    ```bash
+    python --version
+    ```
+    
+    Try reinstalling with:
+    ```bash
+    pip install --force-reinstall git+https://github.com/AdityaLab/Samay.git
+    ```
+  </Accordion>
+  
+  <Accordion title="CUDA/GPU issues">
+    If GPU is not detected:
+    - Verify NVIDIA drivers are installed: `nvidia-smi`
+    - Check PyTorch CUDA compatibility
+    - Reinstall PyTorch with CUDA support from [pytorch.org](https://pytorch.org)
+  </Accordion>
+  
+  <Accordion title="Memory errors">
+    For large models:
+    - Use smaller batch sizes
+    - Enable gradient checkpointing
+    - Use CPU if GPU memory is insufficient
+    - Consider using smaller model variants
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+    Learn the basics with a simple forecasting example
+  </Card>
+  <Card title="Example Notebooks" icon="book" href="https://github.com/AdityaLab/Samay/tree/main/example">
+    Explore complete examples for all models
+  </Card>
+</CardGroup>

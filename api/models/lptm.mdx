@@ -1,0 +1,211 @@
+---
+title: "LPTMModel"
+description: "Large Pre-trained Time Series Model for forecasting, imputation, detection, and classification"
+---
+
+## Class Signature
+
+```python
+class LPTMModel(Basemodel):
+    def __init__(self, config=None)
+```
+
+The `LPTMModel` class implements the Large Pre-trained Time Series Model, a versatile foundation model supporting multiple tasks including forecasting, imputation, anomaly detection, and classification.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary. The model loads from the pre-trained checkpoint `kage08/lptm-large2` with the provided configuration.
+</ParamField>
+
+## Configuration Parameters
+
+The `config` dictionary supports the following parameters:
+
+<ParamField path="max_patch" type="int">
+  Maximum patch length for the model.
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: LPTMDataset, task_name: str = "forecasting", **kwargs)
+```
+
+Finetune the LPTM model on a dataset.
+
+<ParamField path="dataset" type="LPTMDataset" required>
+  Dataset used for finetuning. Use `get_data_loader()` to obtain the dataloader.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Training task to perform. Options:
+  - `"forecasting"`: Standard forecasting task
+  - `"forecasting2"`: Alternative forecasting mode
+  - `"imputation"`: Fill in missing values
+  - `"detection"`: Anomaly detection
+  - `"classification"`: Time series classification
+</ParamField>
+
+<ParamField path="lr" type="float" default="1e-4">
+  Learning rate for training.
+</ParamField>
+
+<ParamField path="epoch" type="int" default="5">
+  Number of training epochs.
+</ParamField>
+
+<ParamField path="norm" type="float" default="5.0">
+  Maximum norm for gradient clipping.
+</ParamField>
+
+<ParamField path="mask_ratio" type="float" default="0.25">
+  Masking ratio for imputation and detection tasks.
+</ParamField>
+
+<ParamField path="quantization" type="bool" default="False">
+  Whether to apply quantization during training.
+</ParamField>
+
+<ResponseField name="return" type="nn.Module">
+  The trained model instance.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(dataset: LPTMDataset, task_name: str = "forecasting", metric_only=False, **kwargs)
+```
+
+Evaluate the LPTM model on a dataset.
+
+<ParamField path="dataset" type="LPTMDataset" required>
+  Dataset for evaluation. Use `get_data_loader()` to obtain the dataloader.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Evaluation task. Options:
+  - `"forecasting"`: Standard forecasting
+  - `"forecasting2"`: Alternative forecasting mode
+  - `"imputation"`: Imputation evaluation
+  - `"detection"`: Anomaly detection evaluation
+  - `"classification"`: Classification evaluation
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only computed metrics.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **For forecasting tasks (when `metric_only=True`):**
+  
+  Dictionary containing metrics:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+
+  **When `metric_only=False` (forecasting):**
+  
+  Tuple of (metrics, trues, preds, histories):
+  - `metrics`: Dictionary of metrics (as above)
+  - `trues`: Ground truth values, shape (num_samples, num_ts, horizon_len)
+  - `preds`: Predictions, shape (num_samples, num_ts, horizon_len)
+  - `histories`: Historical context, shape (num_samples, num_ts, context_len)
+
+  **For imputation:**
+  
+  Returns (trues, preds, masks) tuple
+
+  **For detection:**
+  
+  Returns (trues, preds, labels) tuple
+
+  **For classification:**
+  
+  Returns (accuracy, embeddings, labels) tuple
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(dataset: LPTMDataset, task_name="forecasting", **kwargs)
+```
+
+Visualize forecasting results.
+
+<ParamField path="dataset" type="LPTMDataset" required>
+  Dataset for plotting.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Task to visualize (currently only supports "forecasting").
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Additional keyword arguments forwarded to visualization.
+</ParamField>
+
+---
+
+### quantize()
+
+```python
+def quantize(quant_type="int8", device="cuda")
+```
+
+Quantize the model for efficient inference.
+
+<ParamField path="quant_type" type="str" default="int8">
+  Quantization type to apply.
+</ParamField>
+
+<ParamField path="device" type="str" default="cuda">
+  Device to perform quantization on.
+</ParamField>
+
+<ResponseField name="return" type="nn.Module">
+  Quantized model instance.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import LPTMModel
+from samay.dataset import LPTMDataset
+
+# Initialize model
+config = {"max_patch": 512}
+model = LPTMModel(config=config)
+
+# Prepare dataset
+dataset = LPTMDataset(...)
+
+# Finetune for forecasting
+model.finetune(dataset, task_name="forecasting", lr=1e-4, epoch=10)
+
+# Evaluate
+metrics = model.evaluate(dataset, metric_only=True)
+print(f"MSE: {metrics['mse']}")
+
+# Quantize for efficient inference
+model.quantize(quant_type="int8")
+```
+
+## Notes
+
+- LPTM supports multiple tasks: forecasting, imputation, detection, and classification
+- The model automatically loads from the `kage08/lptm-large2` checkpoint
+- Mixed precision training is used automatically with gradient scaling
+- OneCycleLR scheduler is applied during training

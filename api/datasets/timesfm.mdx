@@ -1,0 +1,172 @@
+---
+title: 'TimesfmDataset'
+description: 'Dataset class for TimesFM (Time Series Foundation Model)'
+icon: 'wave-square'
+---
+
+## Overview
+
+Dataset class compatible with TimesFM (Time Series Foundation Model) for time series forecasting.
+
+## Class signature
+
+```python
+class TimesfmDataset(BaseDataset):
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = "ds",
+        path: str = None,
+        batchsize: int = 4,
+        mode: str = "train",
+        boundaries: tuple = (0, 0, 0),
+        context_len: int = 128,
+        horizon_len: int = 32,
+        freq: str = "h",
+        normalize: bool = False,
+        stride: int = 10,
+        **kwargs,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name used to locate data.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="ds">
+  Datetime column name in the CSV.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to CSV file. If None, loader from `BaseDataset` will be used.
+</ParamField>
+
+<ParamField path="batchsize" type="int" default="4">
+  Batch size for dataloaders.
+</ParamField>
+
+<ParamField path="mode" type="str" default="train">
+  Mode of use: `"train"` or `"test"`.
+</ParamField>
+
+<ParamField path="boundaries" type="tuple" default="(0, 0, 0)">
+  Train/val/test split boundaries. Default splits as: 50% train, 20% val, 30% test.
+</ParamField>
+
+<ParamField path="context_len" type="int" default="128">
+  Historical context length.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" default="32">
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="freq" type="str" default="h">
+  Data frequency code (e.g., `"h"` for hourly, `"d"` for daily, `"m"` for monthly).
+</ParamField>
+
+<ParamField path="normalize" type="bool" default="False">
+  Whether to normalize input features.
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride used when creating windows from the timeseries.
+</ParamField>
+
+<ParamField path="kwargs" type="dict">
+  Extra backend-specific options.
+</ParamField>
+
+## Methods
+
+### `get_data_loader()`
+
+Get a DataLoader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+**Returns:** `DataLoader` - DataLoader for the dataset.
+
+### `preprocess_train_batch(data)`
+
+Preprocess a training batch.
+
+```python
+def preprocess_train_batch(self, data: tuple)
+```
+
+**Parameters:**
+- `data` (tuple): Input data tuple.
+
+**Returns:** `dict` - Preprocessed data dictionary with keys `'input_ts'` and `'actual_ts'`.
+
+### `preprocess_eval_batch(data)`
+
+Preprocess an evaluation batch.
+
+```python
+def preprocess_eval_batch(self, data: tuple)
+```
+
+**Parameters:**
+- `data` (tuple): Input data tuple.
+
+**Returns:** `dict` - Preprocessed data dictionary with keys `'input_ts'` and `'actual_ts'`.
+
+### `preprocess(data)`
+
+Preprocess the input data.
+
+```python
+def preprocess(self, data: tuple)
+```
+
+**Parameters:**
+- `data` (tuple): Input data tuple.
+
+**Returns:** `dict` - Preprocessed data dictionary.
+
+### `_denormalize_data(data)`
+
+Denormalize the input data.
+
+```python
+def _denormalize_data(self, data: np.ndarray)
+```
+
+**Parameters:**
+- `data` (np.ndarray): Input data array.
+
+**Returns:** `np.ndarray` - Denormalized data array.
+
+## Example usage
+
+```python
+from samay.dataset import TimesfmDataset
+
+dataset = TimesfmDataset(
+    path="data/hourly_data.csv",
+    datetime_col="timestamp",
+    context_len=256,
+    horizon_len=64,
+    freq="h",
+    normalize=True,
+    mode="train"
+)
+
+loader = dataset.get_data_loader()
+for batch in loader:
+    input_ts = batch['input_ts']
+    actual_ts = batch['actual_ts']
+    # Training logic here
+```
+
+## Notes
+
+- The dataset automatically adjusts horizon length to be at most 30% of the data length
+- Supports special boundary values: `(-1, -1, -1)` uses all data for training
+- When `normalize=True`, a StandardScaler is fitted on the training data

@@ -1,0 +1,200 @@
+---
+title: 'TimeMoEDataset'
+description: 'Dataset class for TimeMoE mixture of experts forecasting model'
+icon: 'brain'
+---
+
+## Overview
+
+Dataset class for TimeMoE (Time Series Mixture of Experts), supporting both evaluation and fine-tuning tasks.
+
+## Class signature
+
+```python
+class TimeMoEDataset(BaseDataset):
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = None,
+        path: str = None,
+        batch_size: int = 16,
+        mode: str = "train",
+        boundaries: list = [0, 0, 0],
+        task_name: str = "evaluation",
+        stride: int = 10,
+        context_len: int = 512,
+        horizon_len: int = 96,
+        **kwargs,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="None">
+  Name of the datetime column.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to CSV file.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="16">
+  Batch size for DataLoader.
+</ParamField>
+
+<ParamField path="mode" type="str" default="train">
+  Mode of operation: `"train"` or `"test"`.
+</ParamField>
+
+<ParamField path="boundaries" type="list" default="[0, 0, 0]">
+  Train/val/test split boundaries. Default splits as: 50% train, 20% val, 30% test.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="evaluation">
+  Task type: `"evaluation"` or `"finetune"`.
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride for windowing time series data.
+</ParamField>
+
+<ParamField path="context_len" type="int" default="512">
+  Historical context length.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" default="96">
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="kwargs" type="dict">
+  Extra backend-specific options.
+</ParamField>
+
+## Methods
+
+### `__len__()`
+
+Get the length of the dataset.
+
+```python
+def __len__(self) -> int
+```
+
+**Returns:** `int` - Number of samples available for iteration.
+
+### `__getitem__(index)`
+
+Get a data sample for the given index.
+
+```python
+def __getitem__(self, index: int)
+```
+
+**Parameters:**
+- `index` (int): Index of the data sample.
+
+**Returns:** 
+- For evaluation task: `(input_seq, forecast_seq)`
+- For finetune task: `(input_seq, forecast_seq, loss_mask)`
+
+### `get_data_loader()`
+
+Get a data loader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+**Returns:** `DataLoader` - PyTorch DataLoader object for the dataset.
+
+### `_denormalize_data(data)`
+
+Denormalizes the data.
+
+```python
+def _denormalize_data(self, data: np.ndarray)
+```
+
+**Parameters:**
+- `data` (np.ndarray): Normalized data.
+
+**Returns:** `np.ndarray` - Denormalized data.
+
+## Example usage
+
+### Evaluation task
+
+```python
+from samay.dataset import TimeMoEDataset
+
+dataset = TimeMoEDataset(
+    path="data/timeseries.csv",
+    datetime_col="timestamp",
+    task_name="evaluation",
+    context_len=512,
+    horizon_len=96,
+    mode="test"
+)
+
+loader = dataset.get_data_loader()
+for input_seq, forecast_seq in loader:
+    # Evaluation logic here
+    # input_seq: (batch_size, context_len)
+    # forecast_seq: (batch_size, horizon_len)
+    pass
+```
+
+### Fine-tuning task
+
+```python
+dataset = TimeMoEDataset(
+    path="data/timeseries.csv",
+    datetime_col="timestamp",
+    task_name="finetune",
+    context_len=512,
+    mode="train"
+)
+
+loader = dataset.get_data_loader()
+for input_seq, forecast_seq, loss_mask in loader:
+    # Fine-tuning logic here
+    # input_seq: (batch_size, context_len)
+    # forecast_seq: (batch_size, 1)
+    # loss_mask: (batch_size, context_len)
+    pass
+```
+
+## Task-specific outputs
+
+### Evaluation task
+
+Returns: `(input_seq, forecast_seq)`
+- `input_seq`: Historical context of shape `(context_len,)` per channel
+- `forecast_seq`: Target forecast of shape `(horizon_len,)` per channel
+
+### Finetune task
+
+Returns: `(input_seq, forecast_seq, loss_mask)`
+- `input_seq`: Historical context of shape `(context_len,)` per channel
+- `forecast_seq`: Next time step prediction of shape `(1,)` per channel
+- `loss_mask`: Mask of ones with shape `(context_len,)`
+
+## Features
+
+- Automatic StandardScaler normalization fitted on training data
+- Per-channel processing for multivariate time series
+- Automatic padding for short sequences
+- Support for both zero-shot evaluation and fine-tuning
+- Automatic horizon length adjustment (max 30% of data length)
+
+## Notes
+
+- The dataset processes each channel independently
+- Supports special boundary values: `[-1, -1, -1]` uses all data for training
+- For fine-tuning, horizon is set to 1 (next step prediction)
+- Data is automatically normalized using StandardScaler
+- Output shape: `(batch_size, seq_len)` where each sample is a single channel

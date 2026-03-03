@@ -1,0 +1,144 @@
+---
+title: Time-MoE
+description: Mixture of Experts model for time series forecasting
+---
+
+## Overview
+
+Time-MoE is a Mixture of Experts (MoE) model specifically designed for time series forecasting. It uses a sparse gating mechanism to route inputs to specialized experts, enabling efficient scaling.
+
+**Paper:** [Time-MoE: Billion-Scale Time Series Foundation Models with Mixture of Experts](https://arxiv.org/abs/2409.16040)
+
+## Configuration
+
+Time-MoE configuration is loaded from a JSON file:
+
+```python
+from samay.utils import load_args
+
+arg_path = "config/timemoe.json"
+args = load_args(arg_path)
+```
+
+Example configuration:
+```json
+{
+    "repo": "Maple728/TimeMoE-50M",
+    "context_len": 512,
+    "horizon_len": 96
+}
+```
+
+## Loading the Model
+
+```python
+from samay.model import TimeMoEModel
+from samay.utils import load_args
+
+arg_path = "config/timemoe.json"
+args = load_args(arg_path)
+model = TimeMoEModel(**args)
+```
+
+## Loading Dataset
+
+<Tabs>
+  <Tab title="For Training (Fine-tuning)">
+```python
+from samay.dataset import TimeMoEDataset
+
+train_dataset = TimeMoEDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    batch_size=32,
+    context_len=512,
+    horizon_len=96,
+    task_name="finetune"
+)
+```
+  </Tab>
+  <Tab title="For Evaluation">
+```python
+val_dataset = TimeMoEDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    batch_size=128,
+    context_len=512,
+    horizon_len=96
+)
+```
+  </Tab>
+</Tabs>
+
+<Info>
+Note the `task_name="finetune"` parameter for training datasets.
+</Info>
+
+## Zero-Shot Forecasting
+
+```python
+metrics = model.evaluate(val_dataset, metric_only=True)
+print(metrics)
+# {'mse': ..., 'mae': ..., 'mase': ..., 'mape': ..., ...}
+```
+
+## Fine-tuning
+
+<Warning>
+Time-MoE fine-tuning is currently under development. The example notebook shows an error during fine-tuning.
+</Warning>
+
+```python
+# Note: Fine-tuning implementation is being improved
+model.finetune(train_dataset)
+```
+
+## Visualization
+
+```python
+model.plot(val_dataset)
+```
+
+## Mixture of Experts Architecture
+
+Time-MoE uses a Mixture of Experts approach:
+
+1. **Sparse Gating**: Routes inputs to a subset of experts
+2. **Specialized Experts**: Each expert learns different patterns
+3. **Efficient Scaling**: Increases capacity without proportional compute increase
+4. **Load Balancing**: Ensures even distribution across experts
+
+## Key Features
+
+- **Scalable**: Efficiently scales to billion-parameter models
+- **Sparse Activation**: Only a subset of parameters active per input
+- **Specialized Learning**: Different experts capture different patterns
+- **Efficient Inference**: Despite large size, inference is efficient
+
+## Model Variants
+
+| Model | Parameters | Description |
+|-------|-----------|-------------|
+| TimeMoE-50M | 50M | Small variant for quick experiments |
+| TimeMoE-200M | 200M | Medium variant balancing size and performance |
+| TimeMoE-1B | 1B | Large variant for maximum accuracy |
+
+## When to Use Time-MoE
+
+- When you need state-of-the-art accuracy
+- For diverse time series patterns in your data
+- When you have computational resources for larger models
+- For complex forecasting tasks requiring specialized expertise
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/timemoe.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/timemoe.ipynb)
+
+<Note>
+The Time-MoE model is actively being improved. Check the repository for the latest updates.
+</Note>

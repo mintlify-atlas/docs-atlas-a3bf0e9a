@@ -1,0 +1,154 @@
+---
+title: 'LPTMDataset'
+description: 'Dataset class for LPTM (Large Pre-trained Time-series Models)'
+icon: 'chart-line'
+---
+
+## Overview
+
+Dataset class for LPTM models, supporting forecasting, imputation, detection, and classification tasks.
+
+## Class signature
+
+```python
+class LPTMDataset(BaseDataset):
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = None,
+        path: str = None,
+        batchsize: int = 16,
+        mode: str = "train",
+        boundaries: list = [0, 0, 0],
+        horizon: int = 0,
+        task_name: str = "forecasting",
+        label_col: str = None,
+        stride: int = 10,
+        seq_len: int = 512,
+        **kwargs,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Name of the dataset. Used to locate data automatically.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="None">
+  Name of the datetime column in the CSV file.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to the dataset CSV file. If None, uses the loader function for `name`.
+</ParamField>
+
+<ParamField path="batchsize" type="int" default="16">
+  Batch size for DataLoader.
+</ParamField>
+
+<ParamField path="mode" type="str" default="train">
+  Mode of operation: `'train'` or `'test'`.
+</ParamField>
+
+<ParamField path="boundaries" type="list" default="[0, 0, 0]">
+  Train/val/test split boundaries. Default splits as: 60% train, 20% val, 20% test.
+</ParamField>
+
+<ParamField path="horizon" type="int" default="0">
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Task type: `'forecasting'`, `'imputation'`, `'forecasting2'`, `'detection'`, or `'classification'`.
+</ParamField>
+
+<ParamField path="label_col" type="str" default="None">
+  Column name for labels in classification tasks. Defaults to `'label'` if not provided.
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride for windowing time series data.
+</ParamField>
+
+<ParamField path="seq_len" type="int" default="512">
+  Sequence length for input windows.
+</ParamField>
+
+<ParamField path="kwargs" type="dict">
+  Extra backend-specific options.
+</ParamField>
+
+## Methods
+
+### `__len__()`
+
+Get the total number of data samples.
+
+```python
+def __len__(self) -> int
+```
+
+**Returns:** `int` - Number of samples available for iteration.
+
+### `__getitem__(index)`
+
+Get a data sample by index.
+
+```python
+def __getitem__(self, index: int)
+```
+
+**Parameters:**
+- `index` (int): Index of the data sample.
+
+**Returns:** Depending on the task, returns input sequences, masks, forecasts, labels, etc.
+
+### `get_data_loader()`
+
+Get a DataLoader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+**Returns:** `DataLoader` - PyTorch DataLoader for the dataset.
+
+## Example usage
+
+```python
+from samay.dataset import LPTMDataset
+
+# Forecasting task
+dataset = LPTMDataset(
+    path="data/timeseries.csv",
+    datetime_col="date",
+    task_name="forecasting",
+    horizon=96,
+    seq_len=512,
+    mode="train"
+)
+
+loader = dataset.get_data_loader()
+for batch in loader:
+    input_seq, input_mask, forecast_seq = batch
+    # Training logic here
+```
+
+## Task-specific outputs
+
+### Forecasting
+
+Returns: `(input_seq, input_mask, forecast_seq)`
+
+### Imputation
+
+Returns: `(input_seq, input_mask)`
+
+### Detection
+
+Returns: `(input_seq, input_mask, labels)`
+
+### Classification
+
+Returns: `(input_seq, input_mask, labels)`

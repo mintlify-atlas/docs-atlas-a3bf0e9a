@@ -1,0 +1,328 @@
+---
+title: Anomaly Detection
+description: Detect anomalies in time-series data using Samay's foundation models
+---
+
+## Overview
+
+Anomaly detection identifies unusual patterns, outliers, or deviations in time-series data. Samay supports anomaly detection through reconstruction-based methods, where the model learns normal patterns and flags points with high reconstruction error as anomalies.
+
+## Models Supporting Anomaly Detection
+
+| Model | Approach | Zero-Shot | Fine-Tuning |
+|-------|----------|-----------|-------------|
+| **MOMENT** | Reconstruction | ✅ | ✅ |
+| **LPTM** | Reconstruction | ✅ | ✅ |
+
+## Step-by-Step Workflow
+
+<Steps>
+  <Step title="Load the model">
+    Initialize a model with reconstruction task:
+
+    ```python
+    from samay.model import MomentModel
+
+    repo = "AutonLab/MOMENT-1-large"
+    config = {
+        "task_name": "reconstruction",
+    }
+    mmt = MomentModel(config=config, repo=repo)
+    ```
+  </Step>
+
+  <Step title="Prepare anomaly dataset">
+    Load data with known anomaly boundaries:
+
+    ```python
+    from samay.dataset import MomentDataset
+
+    test_dataset = MomentDataset(
+        name="ett",
+        path="data/198_UCR_Anomaly_tiltAPB2_50000_124159_124985.out",
+        mode="test",
+        boundaries=[50000, 50000, 0],  # [train_end, anomaly_start, anomaly_end]
+        task_name="detection",
+        stride=512,
+    )
+    ```
+
+    <Note>
+      The `boundaries` parameter defines:
+      - `train_end`: Where normal data ends
+      - `anomaly_start`: Where anomalies begin
+      - `anomaly_end`: Where anomalies end (0 = end of file)
+    </Note>
+  </Step>
+
+  <Step title="Detect anomalies">
+    Use the model to identify anomalous points:
+
+    ```python
+    # Evaluate and get reconstruction errors
+    trues, preds, labels = mmt.evaluate(
+        test_dataset, task_name="detection"
+    )
+
+    # Visualize anomalies
+    mmt.plot(test_dataset, task_name="detection")
+    ```
+  </Step>
+
+  <Step title="Analyze results">
+    Calculate anomaly scores and metrics:
+
+    ```python
+    from samay.models.momentfm.utils.anomaly_detection_metrics import adjbestf1
+
+    # Reconstruction error as anomaly score
+    anomaly_scores = np.abs(trues - preds)
+
+    # Calculate F1 score
+    f1_score = adjbestf1(anomaly_scores, labels)
+    print(f"Adjusted Best F1: {f1_score}")
+    ```
+  </Step>
+</Steps>
+
+## Real Examples
+
+### MOMENT Zero-Shot Anomaly Detection
+
+From `moment_anomaly_detection.ipynb`:
+
+```python
+from samay.model import MomentModel
+from samay.dataset import MomentDataset
+
+repo = "AutonLab/MOMENT-1-large"
+config = {"task_name": "reconstruction"}
+mmt = MomentModel(config=config, repo=repo)
+
+# Prepare dataset with anomaly boundaries
+test_dataset = MomentDataset(
+    name="ett",
+    path="data/198_UCR_Anomaly_tiltAPB2_50000_124159_124985.out",
+    mode="test",
+    boundaries=[50000, 50000, 0],
+    task_name="detection",
+    stride=512,
+)
+
+# Detect and visualize anomalies
+mmt.plot(test_dataset, task_name="detection")
+```
+
+**Output:** The plot shows the original time-series with anomalous regions highlighted based on reconstruction error.
+
+### LPTM Anomaly Benchmark
+
+From `lptm_anomaly_benchmark.ipynb`, process multiple anomaly files:
+
+```python
+import os
+from anomaly_benchmark_processing import detect_anomalies_in_data
+
+folder_path = "data/UCR_Anomaly_FullData"
+all_files = sorted([
+    f for f in os.listdir(folder_path)
+    if os.path.isfile(os.path.join(folder_path, f))
+])
+
+def get_number_values(path):
+    """Extract boundaries from filename"""
+    path = path[:-4]
+    parts = path.split("_")
+    num1, num2, num3 = parts[-3], parts[-2], parts[-1]
+    return (int(num1), int(num2), int(num3))
+
+# Process first 10 files
+epochs = 1
+for i in range(10):
+    path = os.path.join(folder_path, all_files[i])
+    train_end, anomaly_start, anomaly_end = get_number_values(path)
+    name = f"Anomaly Plot #{i + 1}"
+    
+    detect_anomalies_in_data(
+        epochs, path, name,
+        train_end, anomaly_start, anomaly_end
+    )
+    print(f"{i + 1} file(s) done")
+```
+
+**Output:** Processes UCR Anomaly Archive files, detects anomalies, and saves results to `saved_anomalies/anomalies_log.csv`.
+
+## Advanced Techniques
+
+### Fine-Tuning for Domain-Specific Anomalies
+
+Improve detection on your specific data:
+
+```python
+# Prepare training data (normal patterns only)
+train_dataset = MomentDataset(
+    name="ett",
+    path="data/198_UCR_Anomaly_tiltAPB2_50000_124159_124985.out",
+    mode="train",
+    boundaries=[50000, 50000, 0],
+    task_name="detection",
+    stride=512,
+)
+
+# Fine-tune on normal data
+finetuned_model = mmt.finetune(
+    train_dataset,
+    task_name="reconstruction",
+    epoch=5
+)
+
+# Evaluate on test data
+trues, preds, labels = finetuned_model.evaluate(
+    test_dataset, task_name="detection"
+)
+```
+
+### Threshold Selection
+
+Choose optimal threshold for anomaly classification:
+
+```python
+import numpy as np
+from sklearn.metrics import precision_recall_curve
+
+# Calculate reconstruction errors
+errors = np.abs(trues - preds)
+
+# Find optimal threshold using precision-recall curve
+precision, recall, thresholds = precision_recall_curve(labels, errors)
+f1_scores = 2 * (precision * recall) / (precision + recall)
+optimal_idx = np.argmax(f1_scores)
+optimal_threshold = thresholds[optimal_idx]
+
+print(f"Optimal threshold: {optimal_threshold}")
+print(f"F1 Score: {f1_scores[optimal_idx]}")
+
+# Apply threshold
+anomalies = errors > optimal_threshold
+```
+
+### Multivariate Anomaly Detection
+
+Detect anomalies across multiple time-series channels:
+
+```python
+# Dataset with multiple channels
+multivar_dataset = MomentDataset(
+    name="ett",
+    path="data/ETTh1.csv",  # Multiple columns: HUFL, HULL, MUFL, etc.
+    mode="test",
+    task_name="imputation",  # Use imputation for reconstruction
+)
+
+# Evaluate
+trues, preds, masks = mmt.evaluate(
+    multivar_dataset, task_name="imputation"
+)
+
+# Aggregate errors across channels
+channel_errors = np.abs(trues - preds)
+aggregated_score = np.mean(channel_errors, axis=1)  # Average across channels
+
+# Detect anomalies based on aggregated score
+threshold = np.percentile(aggregated_score, 95)  # Top 5% as anomalies
+anomalies = aggregated_score > threshold
+```
+
+## Evaluation Metrics
+
+### Adjusted Best F1 Score
+
+Accounts for point-wise and window-wise detection:
+
+```python
+from samay.models.momentfm.utils.anomaly_detection_metrics import adjbestf1
+
+f1 = adjbestf1(anomaly_scores, true_labels)
+```
+
+### Precision, Recall, and F1
+
+```python
+from sklearn.metrics import precision_score, recall_score, f1_score
+
+precision = precision_score(true_labels, predicted_labels)
+recall = recall_score(true_labels, predicted_labels)
+f1 = f1_score(true_labels, predicted_labels)
+
+print(f"Precision: {precision:.3f}")
+print(f"Recall: {recall:.3f}")
+print(f"F1 Score: {f1:.3f}")
+```
+
+### Area Under ROC Curve (AUC)
+
+```python
+from sklearn.metrics import roc_auc_score, roc_curve
+import matplotlib.pyplot as plt
+
+# Calculate AUC
+auc = roc_auc_score(true_labels, anomaly_scores)
+
+# Plot ROC curve
+fpr, tpr, _ = roc_curve(true_labels, anomaly_scores)
+plt.plot(fpr, tpr, label=f"AUC = {auc:.3f}")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve")
+plt.legend()
+plt.show()
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Manufacturing" icon="industry">
+    Detect equipment failures and quality defects in sensor data
+  </Card>
+  <Card title="IT Operations" icon="server">
+    Identify server failures, network anomalies, and security breaches
+  </Card>
+  <Card title="Finance" icon="chart-line">
+    Detect fraudulent transactions and market anomalies
+  </Card>
+  <Card title="Healthcare" icon="heartbeat">
+    Monitor patient vitals and detect abnormal patterns in ECG/EEG data
+  </Card>
+</CardGroup>
+
+## Tips for Better Detection
+
+<AccordionGroup>
+  <Accordion title="Use sufficient context">
+    Ensure context length covers typical patterns. For periodic data, use at least 2-3 periods.
+  </Accordion>
+
+  <Accordion title="Handle class imbalance">
+    Anomalies are rare. Use metrics like F1 score instead of accuracy. Consider stratified sampling during training.
+  </Accordion>
+
+  <Accordion title="Tune the stride parameter">
+    Smaller stride (e.g., 512) provides more granular detection but increases computation. Larger stride is faster but may miss short anomalies.
+  </Accordion>
+
+  <Accordion title="Combine multiple scores">
+    Use ensemble of reconstruction error, prediction error, and statistical measures for robust detection.
+  </Accordion>
+
+  <Accordion title="Domain knowledge matters">
+    Incorporate domain-specific thresholds and validation rules. Not all statistical anomalies are operationally significant.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- **Time-series with missing values?** See [Imputation Guide](/guides/imputation)
+- **Classification task?** Check [Classification Guide](/guides/classification)
+- **Model too large?** Learn about [Quantization](/guides/quantization)
+
+For more examples, see the [LPTM Anomaly Benchmark notebook](https://github.com/your-repo/Samay/blob/main/example/lptm_anomaly_benchmark.ipynb).

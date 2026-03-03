@@ -1,0 +1,179 @@
+---
+title: "ChronosModel"
+description: "Amazon's Chronos language model for probabilistic time series forecasting"
+---
+
+## Class Signature
+
+```python
+class ChronosModel(Basemodel):
+    def __init__(self, config=None, repo=None)
+```
+
+The `ChronosModel` class implements Amazon's Chronos, a language model-based approach to probabilistic time series forecasting that uses tokenization to convert time series into discrete tokens.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary. Used when initializing a new model without pre-trained weights.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID. If provided, loads the pre-trained Chronos model. If not provided, initializes a new model using the config.
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: ChronosDataset, **kwargs)
+```
+
+Finetune the model on the given dataset.
+
+<ParamField path="dataset" type="ChronosDataset" required>
+  Dataset for finetuning. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional keyword arguments (currently uses default hyperparameters: lr=1e-4, epochs=5).
+</ParamField>
+
+<ResponseField name="return" type="None">
+  The model is finetuned in-place.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(
+    dataset: ChronosDataset,
+    horizon_len: int,
+    quantile_levels: list,
+    metric_only=False,
+    **kwargs
+)
+```
+
+Evaluate the Chronos model on a dataset.
+
+<ParamField path="dataset" type="ChronosDataset" required>
+  Dataset for evaluation. Use `get_data_loader()` to obtain the dataloader.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" required>
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="quantile_levels" type="list[float]" required>
+  Quantile levels used to compute quantile forecasts and scoring metrics (e.g., [0.1, 0.5, 0.9]).
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only a dict of metrics. If False, return metrics plus arrays.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **When `metric_only=True`:**
+  
+  Dictionary containing:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+  - `mwsq`: Mean Weighted Scaled Quantile Loss
+  - `crps`: Continuous Ranked Probability Score
+
+  **When `metric_only=False`:**
+  
+  Tuple of (metrics, trues, preds, histories, quantile_forecasts):
+  - `metrics`: Dictionary of metrics (as above)
+  - `trues`: Ground truth values, shape (num_samples, horizon_len, num_ts)
+  - `preds`: Mean predictions, shape (num_samples, horizon_len, num_ts)
+  - `histories`: Input context sequences, shape (num_samples, context_len, num_ts)
+  - `quantile_forecasts`: Quantile forecasts, shape (num_quantiles, num_samples, horizon_len, num_ts)
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(
+    dataset: ChronosDataset,
+    horizon_len: int,
+    quantile_levels: list,
+    **kwargs
+)
+```
+
+Plot forecast results produced by the Chronos pipeline.
+
+<ParamField path="dataset" type="ChronosDataset" required>
+  Dataset for plotting. Use `get_data_loader()` to obtain the dataloader.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" required>
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="quantile_levels" type="list[float]" required>
+  List of quantile levels to request from the model (e.g., [0.1, 0.5, 0.9]).
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Additional keyword arguments forwarded to the visualization helper.
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value. It displays visualizations.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import ChronosModel
+from samay.dataset import ChronosDataset
+
+# Load pre-trained model
+model = ChronosModel(repo="amazon/chronos-t5-small")
+
+# Or initialize without pre-trained weights
+config = {...}  # ChronosConfig parameters
+model = ChronosModel(config=config)
+
+# Prepare dataset
+dataset = ChronosDataset(...)
+
+# Finetune
+model.finetune(dataset)
+
+# Evaluate with quantiles
+quantile_levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+metrics = model.evaluate(
+    dataset,
+    horizon_len=96,
+    quantile_levels=quantile_levels,
+    metric_only=True
+)
+print(f"CRPS: {metrics['crps']}")
+
+# Visualize forecasts
+model.plot(dataset, horizon_len=96, quantile_levels=quantile_levels)
+```
+
+## Notes
+
+- Chronos uses a T5-based architecture to treat forecasting as a sequence-to-sequence problem
+- The model tokenizes time series values into discrete bins before processing
+- Quantile predictions are generated through the model's probabilistic outputs
+- Three model sizes are available: small, base, and large
+- The model supports variable-length context and prediction horizons

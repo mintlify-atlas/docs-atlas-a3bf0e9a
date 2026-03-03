@@ -1,0 +1,204 @@
+---
+title: "MomentModel"
+description: "MOMENT foundation model for time series forecasting, imputation, detection, and classification"
+---
+
+## Class Signature
+
+```python
+class MomentModel(Basemodel):
+    def __init__(self, config=None, repo=None)
+```
+
+The `MomentModel` class implements the MOMENT (Multi-task Open Model for Time Series) foundation model, supporting forecasting, imputation, anomaly detection, and classification tasks.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary containing model-specific parameters.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID. If not provided, initializes a new model without pre-trained weights.
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: MomentDataset, task_name: str = "forecasting", **kwargs)
+```
+
+Finetune the model on the given dataset.
+
+<ParamField path="dataset" type="MomentDataset" required>
+  Dataset for finetuning. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Task name. Options:
+  - `"forecasting"`: Time series forecasting
+  - `"imputation"`: Missing value imputation
+  - `"detection"`: Anomaly detection
+  - `"classification"`: Time series classification
+</ParamField>
+
+<ParamField path="lr" type="float" default="1e-4">
+  Learning rate for training.
+</ParamField>
+
+<ParamField path="epoch" type="int" default="5">
+  Number of training epochs.
+</ParamField>
+
+<ParamField path="norm" type="float" default="1.0">
+  Maximum norm for gradient clipping.
+</ParamField>
+
+<ParamField path="mask_ratio" type="float" default="0.25">
+  Masking ratio for imputation and detection tasks.
+</ParamField>
+
+<ResponseField name="return" type="MOMENTPipeline">
+  The finetuned model.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(dataset: MomentDataset, task_name: str = "forecasting", metric_only: bool = False, **kwargs)
+```
+
+Evaluate the model on a dataset.
+
+<ParamField path="dataset" type="MomentDataset" required>
+  Dataset for evaluation. Call `get_data_loader()` to get the dataloader.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Task name: "forecasting", "imputation", "detection", or "classification".
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only metrics.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **For forecasting (when `metric_only=True`):**
+  
+  Dictionary containing:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+
+  **When `metric_only=False` (forecasting):**
+  
+  Tuple of (metrics, trues, preds, histories):
+  - `metrics`: Dictionary of metrics
+  - `trues`: Ground truth, shape (num_samples, num_ts, horizon_len)
+  - `preds`: Predictions, shape (num_samples, num_ts, horizon_len)
+  - `histories`: Historical context, shape (num_samples, num_ts, context_len)
+
+  **For imputation:**
+  
+  Returns (trues, preds, masks) tuple
+
+  **For detection:**
+  
+  Returns (trues, preds, labels) tuple
+
+  **For classification:**
+  
+  Returns (accuracy, embeddings, labels) tuple
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(dataset: MomentDataset, task_name: str = "forecasting")
+```
+
+Visualize results from the MOMENT model.
+
+<ParamField path="dataset" type="MomentDataset" required>
+  Dataset for plotting. Use `get_data_loader()` to obtain the dataloader.
+</ParamField>
+
+<ParamField path="task_name" type="str" default="forecasting">
+  Task to visualize. Options: "forecasting", "imputation", "detection", or "classification".
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value. It displays visualizations.
+</ResponseField>
+
+---
+
+### quantize()
+
+```python
+def quantize(quant_type="int8", device="cuda")
+```
+
+Quantize the model for efficient inference.
+
+<ParamField path="quant_type" type="str" default="int8">
+  Quantization type to apply.
+</ParamField>
+
+<ParamField path="device" type="str" default="cuda">
+  Device to perform quantization on.
+</ParamField>
+
+<ResponseField name="return" type="MOMENTPipeline">
+  Quantized model instance.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import MomentModel
+from samay.dataset import MomentDataset
+
+# Load pre-trained model
+model = MomentModel(repo="AutonLab/MOMENT-1-large")
+
+# Or initialize without pre-trained weights
+config = {...}
+model = MomentModel(config=config)
+
+# Prepare dataset
+dataset = MomentDataset(...)
+
+# Finetune for forecasting
+model.finetune(dataset, task_name="forecasting", lr=5e-5, epoch=10)
+
+# Evaluate
+metrics, trues, preds, histories = model.evaluate(dataset, metric_only=False)
+print(f"RMSE: {metrics['rmse']}")
+
+# Visualize results
+model.plot(dataset, task_name="forecasting")
+
+# Quantize for deployment
+model.quantize(quant_type="int8")
+```
+
+## Notes
+
+- MOMENT is a multi-task foundation model supporting forecasting, imputation, detection, and classification
+- The model uses mixed precision training with gradient scaling for efficiency
+- OneCycleLR scheduler is applied during training
+- MSELoss is used for forecasting/imputation/detection, CrossEntropyLoss for classification
+- Data denormalization is automatically applied during evaluation if the dataset was normalized

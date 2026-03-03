@@ -1,0 +1,183 @@
+---
+title: Probabilistic Metrics
+description: Metrics for evaluating probabilistic forecasts with quantile predictions
+---
+
+Probabilistic metrics evaluate forecasts that predict multiple quantiles, providing a distribution of possible future values rather than single point estimates.
+
+## CRPS
+
+Continuous Ranked Probability Score using discrete quantiles. Approximates CRPS by averaging the pinball loss across quantile levels.
+
+```python
+from samay.metric import CRPS
+
+result = CRPS(y_true, y_pred, quantiles)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array with shape `(num_seq, n_var, seq_len)`
+  - `num_seq`: Number of sequences
+  - `n_var`: Number of variables/features
+  - `seq_len`: Length of the sequence
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted quantiles with shape `(q, num_seq, n_var, seq_len)`
+  - `q`: Number of quantiles
+  - Must match dimensions of `y_true` except for the first dimension
+</ParamField>
+
+<ParamField path="quantiles" type="np.ndarray" required>
+  Array of quantile levels with shape `(q,)`. Values should be between 0 and 1 (e.g., `[0.1, 0.5, 0.9]` for 10th, 50th, and 90th percentiles)
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Approximated CRPS (mean pinball loss over quantiles)
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import CRPS
+
+# Define quantiles (10th to 90th percentiles)
+quantiles = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+
+# Ground truth: 100 sequences, 2 variables, 24 timesteps
+y_true = np.random.randn(100, 2, 24)
+
+# Predictions: 9 quantiles for each point
+y_pred = np.random.randn(9, 100, 2, 24)
+
+crps = CRPS(y_true, y_pred, quantiles)
+print(f"CRPS: {crps:.4f}")
+```
+
+---
+
+## MWSQ
+
+Mean weighted squared quantile loss. Computes a squared pinball loss across quantile forecasts.
+
+```python
+from samay.metric import MWSQ
+
+result = MWSQ(y_true, y_pred, quantiles)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array with shape `(num_seq, n_var, seq_len)`
+  - `num_seq`: Number of sequences
+  - `n_var`: Number of variables/features
+  - `seq_len`: Length of the sequence
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted quantiles with shape `(q, num_seq, n_var, seq_len)`
+  - `q`: Number of quantiles
+  - Must match dimensions of `y_true` except for the first dimension
+</ParamField>
+
+<ParamField path="quantiles" type="np.ndarray" required>
+  Array of quantile levels with shape `(q,)`. Values should be between 0 and 1
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Mean squared pinball loss across quantiles and sequences
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import MWSQ
+
+# Define quantiles
+quantiles = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+
+# Ground truth: 100 sequences, 2 variables, 24 timesteps
+y_true = np.random.randn(100, 2, 24)
+
+# Predictions: 9 quantiles for each point
+y_pred = np.random.randn(9, 100, 2, 24)
+
+mwsq = MWSQ(y_true, y_pred, quantiles)
+print(f"MWSQ: {mwsq:.4f}")
+```
+
+---
+
+## MSIS
+
+Mean scaled interval score. Computes a simple interval scoring metric using empirical percentiles of the ground-truth data.
+
+```python
+from samay.metric import MSIS
+
+result = MSIS(y_true, y_pred, alpha=0.05)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted values or interval endpoints
+</ParamField>
+
+<ParamField path="alpha" type="float" default="0.05">
+  Significance level for the central prediction interval. Default `0.05` corresponds to a 95% confidence interval
+  - `0.05`: 95% interval (5% in each tail)
+  - `0.10`: 90% interval (10% in each tail)
+  - `0.01`: 99% interval (1% in each tail)
+</ParamField>
+
+<ResponseField name="result" type="float">
+  MSIS score
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import MSIS
+
+y_true = np.random.randn(1000)
+y_pred = np.random.randn(1000)
+
+# 95% interval (alpha=0.05)
+msis_95 = MSIS(y_true, y_pred, alpha=0.05)
+print(f"MSIS (95% interval): {msis_95:.4f}")
+
+# 90% interval (alpha=0.10)
+msis_90 = MSIS(y_true, y_pred, alpha=0.10)
+print(f"MSIS (90% interval): {msis_90:.4f}")
+```
+
+## Usage Notes
+
+### Quantile Format
+
+All probabilistic metrics expect quantiles to be provided as a 1D array of values between 0 and 1. Common quantile configurations:
+
+```python
+# 5 quantiles (quintiles)
+quantiles = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+
+# 9 quantiles (deciles)
+quantiles = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+
+# Custom asymmetric quantiles
+quantiles = np.array([0.05, 0.25, 0.5, 0.75, 0.95])
+```
+
+### Shape Requirements
+
+For CRPS and MWSQ:
+- `y_true` shape: `(num_seq, n_var, seq_len)`
+- `y_pred` shape: `(q, num_seq, n_var, seq_len)`
+- `quantiles` shape: `(q,)`
+
+The first dimension of `y_pred` must match the length of `quantiles`.

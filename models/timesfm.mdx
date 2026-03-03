@@ -1,0 +1,134 @@
+---
+title: TimesFM
+description: Time-series Foundation Model for zero-shot forecasting
+---
+
+## Overview
+
+TimesFM is Google's time-series foundation model designed for zero-shot forecasting. It uses a patched decoder architecture and supports probabilistic forecasting with quantile outputs.
+
+**Paper:** [A decoder-only foundation model for time-series forecasting](https://arxiv.org/html/2310.10688v2)
+
+## Configuration Parameters
+
+```python
+config = {
+    "context_len": 512,              # Length of input context
+    "horizon_len": 192,              # Forecast horizon
+    "backend": "gpu",                # "gpu" or "cpu"
+    "per_core_batch_size": 32,      # Batch size per device
+    "input_patch_len": 32,          # Input patch size
+    "output_patch_len": 128,        # Output patch size
+    "num_layers": 20,               # Number of transformer layers
+    "model_dims": 1280,             # Model dimension
+    "quantiles": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],  # Quantile levels
+}
+```
+
+## Loading the Model
+
+```python
+from samay.model import TimesfmModel
+
+repo = "google/timesfm-1.0-200m-pytorch"
+model = TimesfmModel(config=config, repo=repo)
+```
+
+## Loading Dataset
+
+```python
+from samay.dataset import TimesfmDataset
+
+train_dataset = TimesfmDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    context_len=512,
+    horizon_len=192
+)
+
+val_dataset = TimesfmDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    context_len=512,
+    horizon_len=192
+)
+```
+
+## Zero-Shot Forecasting
+
+<Tabs>
+  <Tab title="Get Metrics Only">
+```python
+metrics = model.evaluate(val_dataset, metric_only=True)
+print(metrics)
+# {'mse': ..., 'mae': ..., 'mase': ..., 'rmse': ..., 'crps': ...}
+```
+  </Tab>
+  <Tab title="Get Full Output">
+```python
+metrics, trues, preds, histories, quantiles = model.evaluate(val_dataset)
+# Returns metrics, ground truth, predictions, input history, and quantile forecasts
+```
+  </Tab>
+</Tabs>
+
+## Fine-tuning
+
+```python
+finetuned_model = model.finetune(
+    train_dataset,
+    freeze_transformer=True,  # Freeze transformer layers
+    lr=1e-4,                  # Learning rate
+    epoch=5                   # Number of epochs
+)
+```
+
+<Note>
+TimesFM supports **quantile forecasting**, providing uncertainty estimates through multiple quantile predictions.
+</Note>
+
+## Quantile Forecasting
+
+TimesFM provides probabilistic forecasts through quantiles:
+
+```python
+output, quantile_output = model.forecast(input_ts)
+# output: mean forecast
+# quantile_output: forecasts for each quantile level
+```
+
+## Visualization
+
+```python
+model.plot(val_dataset)
+```
+
+The plot will show:
+- Historical context (512 timesteps)
+- Ground truth forecast (192 timesteps)
+- Model predictions with uncertainty bands
+
+## Available Metrics
+
+TimesFM provides comprehensive evaluation metrics:
+
+- **MSE**: Mean Squared Error
+- **MAE**: Mean Absolute Error
+- **MASE**: Mean Absolute Scaled Error
+- **MAPE**: Mean Absolute Percentage Error
+- **RMSE**: Root Mean Squared Error
+- **NRMSE**: Normalized RMSE
+- **SMAPE**: Symmetric MAPE
+- **MSIS**: Mean Scaled Interval Score
+- **ND**: Normalized Deviation
+- **MWSQ**: Mean Weighted Sum of Quantile
+- **CRPS**: Continuous Ranked Probability Score
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/timesfm.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/timesfm.ipynb)

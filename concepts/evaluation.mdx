@@ -1,0 +1,574 @@
+---
+title: Evaluation Concepts
+description: Understanding metrics, evaluation patterns, and performance measurement in Samay
+---
+
+## Overview
+
+Samay provides comprehensive evaluation metrics for time series forecasting, covering both point forecasts and probabilistic predictions. All metrics are implemented in `src/samay/metric.py`.
+
+## Metric Categories
+
+### Forecasting Metrics
+
+These metrics measure the accuracy of point forecasts (mean predictions):
+
+<CardGroup cols={2}>
+  <Card title="MSE" icon="square-root-variable">
+    **Mean Squared Error**  
+    Measures average squared difference between predictions and ground truth.
+  </Card>
+  <Card title="MAE" icon="ruler">
+    **Mean Absolute Error**  
+    Measures average absolute difference. Less sensitive to outliers than MSE.
+  </Card>
+  <Card title="RMSE" icon="square-root">
+    **Root Mean Squared Error**  
+    Square root of MSE. Same units as original data.
+  </Card>
+  <Card title="MASE" icon="scale-balanced">
+    **Mean Absolute Scaled Error**  
+    Scaled error metric comparing to naive baseline.
+  </Card>
+  <Card title="MAPE" icon="percent">
+    **Mean Absolute Percentage Error**  
+    Error as a percentage of true values.
+  </Card>
+  <Card title="SMAPE" icon="percent">
+    **Symmetric MAPE**  
+    Symmetric version of MAPE, bounded between 0 and 2.
+  </Card>
+  <Card title="NRMSE" icon="wave-square">
+    **Normalized RMSE**  
+    RMSE normalized by the range of true values.
+  </Card>
+  <Card title="ND" icon="arrow-down-1-9">
+    **Normalized Deviation**  
+    MAE normalized by the mean of true values.
+  </Card>
+</CardGroup>
+
+### Probabilistic Metrics
+
+These metrics evaluate the quality of quantile forecasts and prediction intervals:
+
+<CardGroup cols={3}>
+  <Card title="CRPS" icon="chart-area">
+    **Continuous Ranked Probability Score**  
+    Measures the accuracy of probabilistic forecasts across all quantiles.
+  </Card>
+  <Card title="MWSQ" icon="weight-hanging">
+    **Mean Weighted Squared Quantile Loss**  
+    Squared pinball loss across quantiles.
+  </Card>
+  <Card title="MSIS" icon="chart-mixed">
+    **Mean Scaled Interval Score**  
+    Scores prediction interval width and coverage.
+  </Card>
+</CardGroup>
+
+## Metric Signatures
+
+### Point Forecast Metrics
+
+#### MSE
+
+```python
+def MSE(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Mean squared error.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array of shape (..., seq_len).
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): Mean squared error between y_true and y_pred.
+    """
+    return np.mean((y_true - y_pred) ** 2)
+```
+
+**Usage:**
+```python
+from samay.metric import MSE
+
+mse = MSE(ground_truth, predictions)
+print(f"MSE: {mse:.4f}")
+```
+
+#### MAE
+
+```python
+def MAE(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Mean absolute error.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): Mean absolute error between y_true and y_pred.
+    """
+    return np.mean(np.abs(y_true - y_pred))
+```
+
+#### RMSE
+
+```python
+def RMSE(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Root mean squared error.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): Root mean squared error.
+    """
+    return np.sqrt(MSE(y_true, y_pred))
+```
+
+#### MASE
+
+```python
+def MASE(
+    context: np.ndarray,   # (W, S, Lc) - historical context
+    y_true: np.ndarray,    # (W, S, H) - ground truth
+    y_pred: np.ndarray,    # (W, S, H) - predictions
+    reduce: Literal["none", "series", "window", "mean"] = "mean",
+) -> np.ndarray | float:
+    """Mean absolute scaled error (MASE).
+    
+    MASE scales the absolute errors by the average in-sample one-step
+    naive forecast error.
+    
+    Args:
+        context (np.ndarray): Context array. Shape is (W, S, Lc).
+        y_true (np.ndarray): Ground-truth array. Shape (batch, num_seq, seq_len).
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+        reduce (str): How to aggregate: "none", "series", "window", or "mean".
+    
+    Returns:
+        (float): The mean absolute scaled error.
+    """
+```
+
+**Usage:**
+```python
+from samay.metric import MASE
+
+# histories: (num_windows, num_series, context_len)
+# trues: (num_windows, num_series, horizon_len)
+# preds: (num_windows, num_series, horizon_len)
+
+mase = MASE(histories, trues, preds)
+print(f"MASE: {mase:.4f}")
+```
+
+#### MAPE
+
+```python
+def MAPE(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Mean absolute percentage error.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): Mean absolute percentage error. A small epsilon is added to
+            the denominator to avoid division by zero.
+    """
+    return np.mean(np.abs(y_true - y_pred) / (y_true + 1e-5))
+```
+
+#### SMAPE
+
+```python
+def SMAPE(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Symmetric mean absolute percentage error.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): SMAPE value.
+    """
+    return np.mean(
+        2.0 * np.abs(y_true - y_pred) / (np.abs(y_true) + np.abs(y_pred) + 1e-9)
+    )
+```
+
+#### NRMSE
+
+```python
+def NRMSE(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Normalized root mean squared error.
+    
+    Normalizes RMSE by the range of the true values.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): Normalized RMSE.
+    """
+    return RMSE(y_true, y_pred) / (np.max(y_true) - np.min(y_true) + 1e-5)
+```
+
+#### ND
+
+```python
+def ND(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Normalized deviation.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted array with the same shape as y_true.
+    
+    Returns:
+        (float): Normalized deviation.
+    """
+    return np.mean(np.abs(y_true - y_pred)) / (np.mean(y_true) + 1e-5)
+```
+
+### Probabilistic Metrics
+
+#### CRPS
+
+```python
+def CRPS(
+    y_true: np.ndarray,     # (num_seq, n_var, seq_len)
+    y_pred: np.ndarray,     # (q, num_seq, n_var, seq_len)
+    quantiles: np.ndarray   # (q,)
+) -> float:
+    """Continuous Ranked Probability Score (CRPS) using discrete quantiles.
+    
+    This implementation approximates CRPS by averaging the (non-squared)
+    pinball loss across quantile levels.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array with shape (num_seq, n_var, seq_len).
+        y_pred (np.ndarray): Predicted quantiles with shape (q, num_seq, n_var, seq_len).
+        quantiles (np.ndarray): Array of quantile levels with shape (q,).
+    
+    Returns:
+        (float): Approximated CRPS (mean pinball loss over quantiles).
+    """
+```
+
+**Usage:**
+```python
+from samay.metric import CRPS
+
+# trues: (batch, num_series, horizon)
+# quantile_forecasts: (num_quantiles, batch, num_series, horizon)
+# quantile_levels: [0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9]
+
+crps = CRPS(trues, quantile_forecasts, quantile_levels)
+print(f"CRPS: {crps:.4f}")
+```
+
+#### MWSQ
+
+```python
+def MWSQ(
+    y_true: np.ndarray,     # (num_seq, n_var, seq_len)
+    y_pred: np.ndarray,     # (q, num_seq, n_var, seq_len)
+    quantiles: np.ndarray   # (q,)
+) -> float:
+    """Mean weighted squared quantile loss.
+    
+    This function computes a squared pinball loss across quantile forecasts.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array with shape (num_seq, n_var, seq_len).
+        y_pred (np.ndarray): Predicted quantiles with shape (q, num_seq, n_var, seq_len).
+        quantiles (np.ndarray): Array of quantile levels with shape (q,).
+    
+    Returns:
+        (float): Mean squared pinball loss across quantiles and sequences.
+    """
+```
+
+#### MSIS
+
+```python
+def MSIS(
+    y_true: np.ndarray, 
+    y_pred: np.ndarray, 
+    alpha: float = 0.05
+) -> float:
+    """Mean scaled interval score (MSIS).
+    
+    Computes a simple interval scoring metric using empirical percentiles of
+    the ground-truth data.
+    
+    Args:
+        y_true (np.ndarray): Ground-truth array.
+        y_pred (np.ndarray): Predicted values or interval endpoints.
+        alpha (float): Significance level for the central prediction interval
+            (default 0.05 corresponds to a 95% interval).
+    
+    Returns:
+        (float): MSIS score.
+    """
+```
+
+## Evaluation Patterns
+
+### Using evaluate() Method
+
+All models provide an `evaluate()` method that computes all metrics:
+
+```python
+from samay import ChronosModel, ChronosDataset
+
+model = ChronosModel(repo="amazon/chronos-t5-small")
+test_data = ChronosDataset(path="data.csv", mode="test")
+
+# Return only metrics
+metrics = model.evaluate(
+    test_data,
+    horizon_len=96,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=True
+)
+
+print(metrics)
+# {
+#     'mse': 0.1234,
+#     'mae': 0.2567,
+#     'mase': 0.8901,
+#     'mape': 0.1234,
+#     'rmse': 0.3512,
+#     'nrmse': 0.0234,
+#     'smape': 0.1123,
+#     'msis': 0.4567,
+#     'nd': 0.0987,
+#     'mwsq': 0.0234,
+#     'crps': 0.1567
+# }
+```
+
+### Getting Predictions with Metrics
+
+Set `metric_only=False` to also retrieve predictions:
+
+```python
+metrics, trues, preds, histories, quantiles = model.evaluate(
+    test_data,
+    horizon_len=96,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=False
+)
+
+# trues: (num_samples, num_series, horizon) - ground truth
+# preds: (num_samples, num_series, horizon) - mean predictions
+# histories: (num_samples, num_series, context_len) - input context
+# quantiles: (num_quantiles, num_samples, num_series, horizon) - quantile forecasts
+```
+
+### Manual Metric Computation
+
+You can also compute metrics manually:
+
+```python
+from samay.metric import MSE, MAE, MASE, CRPS
+import numpy as np
+
+# Get predictions
+metrics, trues, preds, histories, quantiles = model.evaluate(
+    test_data, 
+    metric_only=False
+)
+
+# Compute individual metrics
+mse = MSE(trues, preds)
+mae = MAE(trues, preds)
+mase = MASE(histories, trues, preds)
+crps = CRPS(trues, quantiles, quantile_levels=[0.1, 0.5, 0.9])
+
+print(f"MSE: {mse:.4f}")
+print(f"MAE: {mae:.4f}")
+print(f"MASE: {mase:.4f}")
+print(f"CRPS: {crps:.4f}")
+```
+
+## Evaluation Implementation Example
+
+Here's how `evaluate()` is implemented in TimesfmModel:
+
+```python
+# From src/samay/model.py:289-398
+def evaluate(self, dataset: TimesfmDataset, metric_only=False, **kwargs):
+    dataloader = dataset.get_data_loader()
+    trues, preds, histories, quantiles = [], [], [], []
+    
+    with torch.no_grad():
+        for i, (inputs) in enumerate(dataloader):
+            inputs = dataset.preprocess(inputs)
+            input_ts = inputs["input_ts"]
+            actual_ts = inputs["actual_ts"]
+            
+            # Get predictions
+            output, quantile_output = self.model.forecast(input_ts)
+            
+            # Collect results
+            trues.append(actual_ts)
+            preds.append(output)
+            histories.append(input_ts)
+            quantiles.append(quantile_output)
+    
+    # Aggregate batches
+    trues = np.concatenate(trues, axis=0)
+    preds = np.concatenate(preds, axis=0)
+    histories = np.concatenate(histories, axis=0)
+    quantiles = np.concatenate(quantiles, axis=1)
+    
+    # Denormalize if needed
+    if dataset.normalize:
+        trues = dataset._denormalize_data(trues)
+        preds = dataset._denormalize_data(preds)
+        histories = dataset._denormalize_data(histories)
+        quantiles = dataset._denormalize_data(quantiles)
+    
+    # Compute metrics
+    mse = MSE(trues, preds)
+    mae = MAE(trues, preds)
+    mase = MASE(histories, trues, preds)
+    mape = MAPE(trues, preds)
+    rmse = RMSE(trues, preds)
+    nrmse = NRMSE(trues, preds)
+    smape = SMAPE(trues, preds)
+    msis = MSIS(trues, preds)
+    nd = ND(trues, preds)
+    mwsq = MWSQ(trues, quantiles, self.config["quantiles"])
+    crps = CRPS(trues, quantiles, self.config["quantiles"])
+    
+    if metric_only:
+        return {
+            "mse": mse, "mae": mae, "mase": mase, "mape": mape,
+            "rmse": rmse, "nrmse": nrmse, "smape": smape,
+            "msis": msis, "nd": nd, "mwsq": mwsq, "crps": crps,
+        }
+    else:
+        return (metrics_dict, trues, preds, histories, quantiles)
+```
+
+## Metric Selection Guide
+
+<AccordionGroup>
+  <Accordion title="When to use MSE/RMSE">
+    **Best for:**
+    - Penalizing large errors heavily
+    - Optimization objectives (differentiable)
+    - Gaussian-distributed errors
+    
+    **Avoid when:**
+    - Data contains outliers (use MAE instead)
+    - Errors have different scales across series
+  </Accordion>
+  
+  <Accordion title="When to use MAE">
+    **Best for:**
+    - Robust to outliers
+    - Interpretable error magnitude
+    - When all errors should be weighted equally
+    
+    **Characteristics:**
+    - Same units as original data
+    - Less sensitive to extreme values than MSE
+  </Accordion>
+  
+  <Accordion title="When to use MASE">
+    **Best for:**
+    - Comparing across datasets with different scales
+    - Benchmarking against naive forecasts
+    - Interpretable performance (MASE < 1 means better than naive)
+    
+    **Interpretation:**
+    - MASE < 1: Better than naive forecast
+    - MASE = 1: Same as naive forecast  
+    - MASE > 1: Worse than naive forecast
+  </Accordion>
+  
+  <Accordion title="When to use MAPE/SMAPE">
+    **Best for:**
+    - Percentage-based interpretation
+    - Scale-independent comparison
+    - Business metrics
+    
+    **Avoid when:**
+    - Data contains zeros or near-zeros
+    - Asymmetric error tolerance (use SMAPE for symmetry)
+  </Accordion>
+  
+  <Accordion title="When to use CRPS">
+    **Best for:**
+    - Evaluating probabilistic forecasts
+    - Quantile forecast quality
+    - Uncertainty quantification
+    
+    **Advantages:**
+    - Proper scoring rule
+    - Evaluates entire predictive distribution
+    - Reduces to MAE for point forecasts
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+### Multiple Metrics
+
+Always report multiple metrics for comprehensive evaluation:
+
+```python
+metrics = model.evaluate(test_data, metric_only=True)
+
+# Report key metrics
+print(f"Point Forecast Metrics:")
+print(f"  MAE:  {metrics['mae']:.4f}")
+print(f"  RMSE: {metrics['rmse']:.4f}")
+print(f"  MASE: {metrics['mase']:.4f}")
+print(f"\nProbabilistic Metrics:")
+print(f"  CRPS: {metrics['crps']:.4f}")
+print(f"  MWSQ: {metrics['mwsq']:.4f}")
+```
+
+### Denormalization
+
+Always denormalize before computing metrics:
+
+```python
+if dataset.normalize:
+    preds = dataset._denormalize_data(preds)
+    trues = dataset._denormalize_data(trues)
+
+# Now compute metrics on original scale
+mae = MAE(trues, preds)
+```
+
+### Quantile Coverage
+
+Use a good range of quantiles for probabilistic metrics:
+
+```python
+# Good: covers tails and median
+quantile_levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+
+# Better: includes extreme tails
+quantile_levels = [0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99]
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Models" icon="microchip" href="/concepts/models">
+    Learn about model evaluation methods
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    See evaluation in action
+  </Card>
+</CardGroup>

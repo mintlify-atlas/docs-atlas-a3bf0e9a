@@ -1,0 +1,326 @@
+---
+title: Forecasting Metrics
+description: Point-based metrics for evaluating deterministic time series forecasts
+---
+
+Forecasting metrics evaluate the accuracy of point predictions against ground truth values.
+
+## MSE
+
+Mean squared error between predictions and ground truth.
+
+```python
+from samay.metric import MSE
+
+result = MSE(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array of shape `(..., seq_len)`
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Mean squared error between `y_true` and `y_pred`
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import MSE
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+mse = MSE(y_true, y_pred)
+print(f"MSE: {mse:.4f}")
+```
+
+---
+
+## MAE
+
+Mean absolute error between predictions and ground truth.
+
+```python
+from samay.metric import MAE
+
+result = MAE(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Mean absolute error between `y_true` and `y_pred`
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import MAE
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+mae = MAE(y_true, y_pred)
+print(f"MAE: {mae:.4f}")
+```
+
+---
+
+## RMSE
+
+Root mean squared error between predictions and ground truth.
+
+```python
+from samay.metric import RMSE
+
+result = RMSE(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Root mean squared error
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import RMSE
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+rmse = RMSE(y_true, y_pred)
+print(f"RMSE: {rmse:.4f}")
+```
+
+---
+
+## MAPE
+
+Mean absolute percentage error between predictions and ground truth.
+
+```python
+from samay.metric import MAPE
+
+result = MAPE(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Mean absolute percentage error. A small epsilon (1e-5) is added to the denominator to avoid division by zero
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import MAPE
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+mape = MAPE(y_true, y_pred)
+print(f"MAPE: {mape:.4f}")
+```
+
+---
+
+## SMAPE
+
+Symmetric mean absolute percentage error between predictions and ground truth.
+
+```python
+from samay.metric import SMAPE
+
+result = SMAPE(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  SMAPE value
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import SMAPE
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+smape = SMAPE(y_true, y_pred)
+print(f"SMAPE: {smape:.4f}")
+```
+
+---
+
+## NRMSE
+
+Normalized root mean squared error. Normalizes RMSE by the range of the true values.
+
+```python
+from samay.metric import NRMSE
+
+result = NRMSE(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Normalized RMSE
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import NRMSE
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+nrmse = NRMSE(y_true, y_pred)
+print(f"NRMSE: {nrmse:.4f}")
+```
+
+---
+
+## ND
+
+Normalized deviation between predictions and ground truth.
+
+```python
+from samay.metric import ND
+
+result = ND(y_true, y_pred)
+```
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ResponseField name="result" type="float">
+  Normalized deviation
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import ND
+
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+nd = ND(y_true, y_pred)
+print(f"ND: {nd:.4f}")
+```
+
+---
+
+## MASE
+
+Mean absolute scaled error. Scales the absolute errors by the average in-sample one-step naive forecast error.
+
+```python
+from samay.metric import MASE
+
+result = MASE(context, y_true, y_pred, reduce="mean")
+```
+
+<ParamField path="context" type="np.ndarray" required>
+  Context array of shape `(W, S, Lc)` where W is the number of windows, S is the number of series, and Lc is the context length
+</ParamField>
+
+<ParamField path="y_true" type="np.ndarray" required>
+  Ground-truth array of shape `(W, S, H)` where H is the horizon length
+</ParamField>
+
+<ParamField path="y_pred" type="np.ndarray" required>
+  Predicted array with the same shape as `y_true`
+</ParamField>
+
+<ParamField path="reduce" type="Literal['none', 'series', 'window', 'mean']" default="mean">
+  Reduction mode:
+  - `"none"`: Return MASE values for each (window, series) pair as shape `(W, S)`
+  - `"series"`: Average over windows, return per-series values of shape `(S,)`
+  - `"window"`: Average over series, return per-window values of shape `(W,)`
+  - `"mean"`: Return scalar mean MASE across all windows and series
+</ParamField>
+
+<ResponseField name="result" type="np.ndarray | float">
+  The mean absolute scaled error. Return type depends on the `reduce` parameter:
+  - `reduce="none"`: Returns `np.ndarray` of shape `(W, S)`
+  - `reduce="series"`: Returns `np.ndarray` of shape `(S,)`
+  - `reduce="window"`: Returns `np.ndarray` of shape `(W,)`
+  - `reduce="mean"`: Returns `float`
+</ResponseField>
+
+### Example
+
+```python
+import numpy as np
+from samay.metric import MASE
+
+# Create sample data
+context = np.random.randn(10, 5, 100)  # 10 windows, 5 series, 100 context steps
+y_true = np.random.randn(10, 5, 24)   # 10 windows, 5 series, 24 horizon steps
+y_pred = np.random.randn(10, 5, 24)
+
+# Compute MASE with different reduction modes
+mase_mean = MASE(context, y_true, y_pred, reduce="mean")
+mase_series = MASE(context, y_true, y_pred, reduce="series")
+mase_window = MASE(context, y_true, y_pred, reduce="window")
+mase_none = MASE(context, y_true, y_pred, reduce="none")
+
+print(f"MASE (mean): {mase_mean:.4f}")
+print(f"MASE (per series): {mase_series}")
+print(f"MASE (per window): {mase_window}")
+print(f"MASE (full): {mase_none.shape}")
+```

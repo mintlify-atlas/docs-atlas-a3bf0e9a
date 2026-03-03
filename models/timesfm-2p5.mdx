@@ -1,0 +1,176 @@
+---
+title: TimesFM 2.5
+description: Next generation TimesFM with improved architecture and performance
+---
+
+## Overview
+
+TimesFM 2.5 is the latest version of Google's time-series foundation model, featuring enhanced architecture, better zero-shot performance, and improved fine-tuning capabilities.
+
+**Repository:** [google/timesfm-2.5-200m-pytorch](https://huggingface.co/google/timesfm-2.5-200m-pytorch)
+
+## Configuration
+
+TimesFM 2.5 configuration is loaded from a JSON file:
+
+```python
+from samay.utils import load_args
+
+arg_path = "config/timesfm_2p5.json"
+args = load_args(arg_path)
+```
+
+Example configuration:
+```json
+{
+    "repo": "google/timesfm-2.5-200m-pytorch",
+    "context_len": 512,
+    "horizon_len": 96,
+    "backend": "gpu",
+    "per_core_batch_size": 32
+}
+```
+
+## Loading the Model
+
+```python
+from samay.model import TimesFM_2p5_Model
+from samay.utils import load_args
+
+arg_path = "config/timesfm_2p5.json"
+args = load_args(arg_path)
+model = TimesFM_2p5_Model(**args)
+```
+
+<Info>
+The model automatically compiles on first load for optimized performance.
+</Info>
+
+## Loading Dataset
+
+<Tabs>
+  <Tab title="For Training">
+```python
+from samay.dataset import TimesFM_2p5_Dataset
+
+train_dataset = TimesFM_2p5_Dataset(
+    name="ETTh1",
+    freq="H",  # Frequency: 'H' (hourly), 'D' (daily), etc.
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    batch_size=32,
+    context_len=512,
+    horizon_len=96,
+    task_name="finetune"
+)
+```
+  </Tab>
+  <Tab title="For Evaluation">
+```python
+val_dataset = TimesFM_2p5_Dataset(
+    name="ETTh1",
+    freq="H",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    batch_size=128,
+    context_len=512,
+    horizon_len=96
+)
+```
+  </Tab>
+</Tabs>
+
+## Zero-Shot Forecasting
+
+```python
+metric, trues, preds, histories, quantiles = model.evaluate(val_dataset)
+print(metric)
+# {'mse': ..., 'mae': ..., 'mase': ..., 'rmse': ..., 'crps': ...}
+```
+
+<Note>
+TimesFM 2.5 returns quantile forecasts for uncertainty estimation.
+</Note>
+
+## Fine-tuning
+
+```python
+model.finetune(train_dataset)
+
+# Evaluate after fine-tuning
+metric, trues, preds, histories, quantiles = model.evaluate(val_dataset)
+```
+
+## Visualization
+
+```python
+from samay.utils import visualize
+
+visualize(
+    trues=trues,
+    preds=preds,
+    history=histories,
+    context_len=512,
+    quantiles=quantiles
+)
+```
+
+## Improvements over TimesFM 1.0
+
+1. **Better Zero-Shot Performance**: Improved accuracy on diverse datasets
+2. **Enhanced Architecture**: More efficient transformer design
+3. **Faster Inference**: Optimized for production deployment
+4. **Better Fine-tuning**: More stable and effective adaptation
+5. **Improved Quantiles**: Better uncertainty quantification
+
+## Quantile Forecasting
+
+TimesFM 2.5 provides probabilistic forecasts:
+
+```python
+metric, trues, preds, histories, quantiles = model.evaluate(val_dataset)
+
+# quantiles shape: (num_quantiles, batch_size, num_channels, horizon_len)
+# Visualize with uncertainty bands
+visualize(
+    trues=trues,
+    preds=preds,
+    history=histories,
+    quantiles=quantiles,
+    context_len=512
+)
+```
+
+## Frequency Support
+
+TimesFM 2.5 supports various frequencies:
+
+- `'S'`: Secondly
+- `'T'` or `'min'`: Minutely
+- `'H'`: Hourly
+- `'D'`: Daily
+- `'W'`: Weekly
+- `'M'`: Monthly
+- `'Q'`: Quarterly
+- `'Y'`: Yearly
+
+## Performance Characteristics
+
+- **Model Size**: 200M parameters
+- **Context Length**: Up to 512 timesteps
+- **Forecast Horizon**: Flexible (commonly 96-720 timesteps)
+- **Inference Speed**: ~2-3x faster than TimesFM 1.0
+
+## When to Use TimesFM 2.5
+
+- When you need the latest improvements from Google Research
+- For production deployments requiring fast inference
+- When uncertainty quantification is important
+- For diverse time series with different frequencies
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/timesfm_2p5.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/timesfm_2p5.ipynb)

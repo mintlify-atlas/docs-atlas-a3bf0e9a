@@ -1,0 +1,116 @@
+---
+title: TinyTimeMixer
+description: Lightweight and fast time series forecasting model
+---
+
+## Overview
+
+TinyTimeMixer is an efficient time series foundation model that uses MLPMixer architecture for fast and accurate forecasting with minimal computational requirements.
+
+**Paper:** [TinyTimeMixers: Fast Pretrained Models for Enhanced Zero/Few-Shot Forecasting](https://arxiv.org/abs/2401.03955)
+
+## Configuration
+
+TinyTimeMixer configuration is typically loaded from a JSON file:
+
+```python
+from samay.utils import load_args
+
+arg_path = "config/tinytimemixer.json"
+args = load_args(arg_path)
+```
+
+Example configuration:
+```json
+{
+    "repo": "ibm/tinytimemixer",
+    "context_len": 512,
+    "horizon_len": 96
+}
+```
+
+## Loading the Model
+
+```python
+from samay.model import TinyTimeMixerModel
+from samay.utils import load_args
+
+arg_path = "config/tinytimemixer.json"
+args = load_args(arg_path)
+model = TinyTimeMixerModel(**args)
+```
+
+## Loading Dataset
+
+```python
+from samay.dataset import TinyTimeMixerDataset
+
+train_dataset = TinyTimeMixerDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    batch_size=64,
+    context_len=512,
+    horizon_len=96
+)
+
+val_dataset = TinyTimeMixerDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    batch_size=64,
+    context_len=512,
+    horizon_len=96
+)
+```
+
+## Zero-Shot Forecasting
+
+```python
+metrics = model.evaluate(val_dataset, metric_only=True)
+print(metrics)
+# {'mse': ..., 'mae': ..., 'mase': ..., 'rmse': ..., ...}
+```
+
+## Fine-tuning
+
+```python
+finetuned_model = model.finetune(train_dataset)
+
+# Evaluate after fine-tuning
+metrics = model.evaluate(val_dataset, metric_only=True)
+```
+
+## Visualization
+
+```python
+model.plot(val_dataset)
+```
+
+## Key Features
+
+- **Lightweight**: Significantly smaller than transformer-based models
+- **Fast Inference**: Quick predictions suitable for real-time applications
+- **Efficient Training**: Requires less computational resources
+- **Good Zero-Shot Performance**: Competitive accuracy without fine-tuning
+
+## Advantages
+
+1. **Speed**: Much faster than transformer-based models
+2. **Memory Efficient**: Lower memory footprint
+3. **Easy to Deploy**: Suitable for edge devices and production environments
+4. **Good Accuracy**: Maintains competitive performance despite smaller size
+
+## When to Use TinyTimeMixer
+
+- When you need fast inference times
+- When computational resources are limited
+- For real-time forecasting applications
+- When model size is a constraint (e.g., edge deployment)
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/tinytimemixer.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/tinytimemixer.ipynb)

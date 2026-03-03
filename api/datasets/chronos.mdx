@@ -1,0 +1,192 @@
+---
+title: 'ChronosDataset'
+description: 'Dataset wrapper for Chronos probabilistic time series forecasting'
+icon: 'timeline'
+---
+
+## Overview
+
+Dataset wrapper for Chronos, a probabilistic time series forecasting model. Supports both seq2seq and causal model types.
+
+## Class signature
+
+```python
+class ChronosDataset(BaseDataset):
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = "ds",
+        path: str = None,
+        boundaries: list = [0, 0, 0],
+        batch_size: int = 16,
+        mode: str = None,
+        stride: int = 10,
+        tokenizer_class: str = "MeanScaleUniformBins",
+        drop_prob: float = 0.2,
+        min_past: int = 64,
+        np_dtype: np.dtype = np.float32,
+        config: ChronosConfig = None,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="ds">
+  Datetime column name.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to CSV file.
+</ParamField>
+
+<ParamField path="boundaries" type="list" default="[0, 0, 0]">
+  Train/val/test split boundaries. Default splits as: 50% train, 20% val, 30% test.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="16">
+  Batch size for dataloaders.
+</ParamField>
+
+<ParamField path="mode" type="str" default="None">
+  `'train'` or `'test'`.
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride for windowing.
+</ParamField>
+
+<ParamField path="tokenizer_class" type="str" default="MeanScaleUniformBins">
+  Tokenizer class name used by Chronos.
+</ParamField>
+
+<ParamField path="drop_prob" type="float" default="0.2">
+  Dropout probability for seq2seq creation. Set to 0.0 for causal models.
+</ParamField>
+
+<ParamField path="min_past" type="int" default="64">
+  Minimum past context length.
+</ParamField>
+
+<ParamField path="np_dtype" type="np.dtype" default="np.float32">
+  Numpy dtype for arrays.
+</ParamField>
+
+<ParamField path="config" type="ChronosConfig" default="None">
+  Chronos configuration object. If None, default configuration is used.
+</ParamField>
+
+## Methods
+
+### `__len__()`
+
+Get the total number of data samples.
+
+```python
+def __len__(self) -> int
+```
+
+**Returns:** `int` - Number of samples available for iteration.
+
+### `__getitem__(index)`
+
+Get a data sample by index.
+
+```python
+def __getitem__(self, index: int)
+```
+
+**Parameters:**
+- `index` (int): Index of the data sample.
+
+**Returns:** `dict` - Data sample containing:
+  - `input_seq`: Input sequence
+  - `forecast_seq`: Forecast sequence
+  - `input_ids`: Tokenized input IDs
+  - `attention_mask`: Attention mask
+  - `labels`: Target labels (with -100 for masked positions)
+
+### `get_data_loader()`
+
+Get a data loader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+**Returns:** `DataLoader` - PyTorch DataLoader for the dataset.
+
+### `preprocess()`
+
+Preprocess the data by applying dropout if in training mode.
+
+```python
+def preprocess()
+```
+
+Applies random dropout to training data based on `drop_prob`.
+
+## Example usage
+
+```python
+from samay.dataset import ChronosDataset
+from samay.models.chronosforecasting.chronos.chronos import ChronosConfig
+
+config = ChronosConfig(
+    tokenizer_class="MeanScaleUniformBins",
+    tokenizer_kwargs={"low_limit": -15.0, "high_limit": 15.0},
+    n_tokens=4096,
+    context_length=512,
+    prediction_length=64,
+    model_type="seq2seq"
+)
+
+dataset = ChronosDataset(
+    path="data/timeseries.csv",
+    datetime_col="date",
+    config=config,
+    batch_size=16,
+    mode="train"
+)
+
+loader = dataset.get_data_loader()
+for batch in loader:
+    input_ids = batch['input_ids']
+    attention_mask = batch['attention_mask']
+    labels = batch['labels']
+    # Training logic here
+```
+
+## Default configuration
+
+If no config is provided, the following defaults are used:
+
+```python
+ChronosConfig(
+    tokenizer_class="MeanScaleUniformBins",
+    tokenizer_kwargs={"low_limit": -15.0, "high_limit": 15.0},
+    n_tokens=4096,
+    n_special_tokens=2,
+    pad_token_id=0,
+    eos_token_id=1,
+    use_eos_token=True,
+    model_type="seq2seq",
+    context_length=512,
+    prediction_length=64,
+    num_samples=20,
+    temperature=1.0,
+    top_k=50,
+    top_p=1.0,
+)
+```
+
+## Features
+
+- Support for both seq2seq and causal model types
+- Automatic tokenization using MeanScaleUniformBins
+- Chunking for multivariate time series (max 16 channels per chunk)
+- Automatic padding for short sequences
+- Dropout regularization for training

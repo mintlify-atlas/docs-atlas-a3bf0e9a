@@ -1,0 +1,149 @@
+---
+title: 'TinyTimeMixerDataset'
+description: 'Dataset class for TinyTimeMixer lightweight forecasting model'
+icon: 'shuffle'
+---
+
+## Overview
+
+Dataset class for TinyTimeMixer, a lightweight and efficient time series forecasting model.
+
+## Class signature
+
+```python
+class TinyTimeMixerDataset(BaseDataset):
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = "ds",
+        path: str = None,
+        boundaries: list = [0, 0, 0],
+        batch_size: int = 128,
+        mode: str = None,
+        stride: int = 10,
+        context_len: int = 512,
+        horizon_len: int = 64,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="ds">
+  Column containing datetimes.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to CSV file.
+</ParamField>
+
+<ParamField path="boundaries" type="list" default="[0, 0, 0]">
+  Train/val/test split boundaries. Default splits as: 50% train, 20% val, 30% test.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="128">
+  Batch size.
+</ParamField>
+
+<ParamField path="mode" type="str" default="None">
+  Mode of use: `'train'`, `'val'`, or `'test'`.
+</ParamField>
+
+<ParamField path="stride" type="int" default="10">
+  Stride for windowing.
+</ParamField>
+
+<ParamField path="context_len" type="int" default="512">
+  Historical context length.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" default="64">
+  Forecast horizon length.
+</ParamField>
+
+## Methods
+
+### `__len__()`
+
+Get the total number of data samples.
+
+```python
+def __len__(self) -> int
+```
+
+**Returns:** `int` - Number of samples available for iteration.
+
+### `__getitem__(index)`
+
+Get a data chunk for the given index.
+
+```python
+def __getitem__(self, index: int)
+```
+
+**Parameters:**
+- `index` (int): Index of the data chunk.
+
+**Returns:** Tuple of:
+  - `input_seq` (np.ndarray): Input sequence of shape `(num_channels, context_len)`
+  - `forecast_seq` (np.ndarray): Forecast sequence of shape `(num_channels, horizon_len)`
+
+### `get_data_loader()`
+
+Get a data loader for the dataset.
+
+```python
+def get_data_loader()
+```
+
+**Returns:** `DataLoader` - PyTorch DataLoader for the dataset.
+
+## Example usage
+
+```python
+from samay.dataset import TinyTimeMixerDataset
+
+dataset = TinyTimeMixerDataset(
+    path="data/timeseries.csv",
+    datetime_col="date",
+    context_len=512,
+    horizon_len=96,
+    batch_size=128,
+    mode="train"
+)
+
+loader = dataset.get_data_loader()
+for input_seq, forecast_seq in loader:
+    # Training logic here
+    # input_seq: (batch_size, n_channels, context_len)
+    # forecast_seq: (batch_size, n_channels, horizon_len)
+    pass
+```
+
+## Features
+
+- Efficient chunking for multivariate time series (max 64 channels per chunk)
+- Automatic padding for short sequences
+- High batch size support (default 128) for fast training
+- Simple and clean data interface
+- Automatic horizon length adjustment (max 30% of data length)
+
+## Data format
+
+### Input shape
+
+`(num_channels, context_len)` - Multiple time series channels with historical context
+
+### Output shape
+
+`(num_channels, horizon_len)` - Forecast for each channel
+
+## Notes
+
+- The dataset automatically adjusts horizon length to be at most 30% of the data length
+- Supports special boundary values: `[-1, -1, -1]` uses all data for training
+- Data is chunked into groups of up to 64 channels for efficient processing
+- No normalization is applied by default (raw data is used)

@@ -1,0 +1,250 @@
+---
+title: "MoiraiTSModel"
+description: "Salesforce's Moirai universal time series forecasting model with MoE architecture"
+---
+
+## Class Signature
+
+```python
+class MoiraiTSModel(Basemodel):
+    def __init__(
+        self,
+        config=None,
+        repo=None,
+        model_type="moirai-moe",
+        model_size="small",
+        **kwargs
+    )
+```
+
+The `MoiraiTSModel` class implements Salesforce's Moirai, a universal time series forecasting model with support for multiple variants including standard Moirai, Moirai-MoE (Mixture of Experts), and Moirai2.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary containing hyperparameters.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID. If not provided, defaults to Salesforce repositories based on model_type and model_size.
+</ParamField>
+
+<ParamField path="model_type" type="str" default="moirai-moe">
+  Type of Moirai model:
+  - `"moirai"`: Standard Moirai model
+  - `"moirai-moe"`: Moirai with Mixture of Experts
+  - `"moirai2"`: Moirai 2.0 with quantile predictions
+</ParamField>
+
+<ParamField path="model_size" type="str" default="small">
+  Model size: "small", "base", or "large".
+</ParamField>
+
+## Configuration Parameters
+
+<ParamField path="horizon_len" type="int" default="32">
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="context_len" type="int" default="128">
+  Context window length.
+</ParamField>
+
+<ParamField path="patch_size" type="int" default="16">
+  Patch size for tokenization.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="16">
+  Batch size for training and inference.
+</ParamField>
+
+<ParamField path="num_samples" type="int" default="100">
+  Number of samples for probabilistic forecasting (ignored for moirai2).
+</ParamField>
+
+<ParamField path="quantiles" type="list[float]">
+  Quantile levels for moirai2 (e.g., [0.1, 0.5, 0.9]).
+</ParamField>
+
+<ParamField path="target_dim" type="int" default="1">
+  Dimension of target variables.
+</ParamField>
+
+<ParamField path="feat_dynamic_real_dim" type="int" default="0">
+  Dimension of dynamic real-valued features.
+</ParamField>
+
+<ParamField path="past_feat_dynamic_real_dim" type="int" default="0">
+  Dimension of past dynamic real-valued features.
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: MoiraiDataset, **kwargs)
+```
+
+Finetune the model on the given dataset.
+
+<ParamField path="dataset" type="MoiraiDataset" required>
+  Dataset containing the input data and relevant functions like dataloaders.
+</ParamField>
+
+<ParamField path="max_epochs" type="int" required>
+  Maximum number of training epochs.
+</ParamField>
+
+<ParamField path="batch_size" type="int">
+  Override default batch size.
+</ParamField>
+
+<ParamField path="num_batches_per_epoch" type="int">
+  Number of batches per epoch (optional).
+</ParamField>
+
+<ParamField path="tf32" type="bool">
+  Enable TF32 tensor cores for faster training.
+</ParamField>
+
+<ResponseField name="return" type="None">
+  The finetuned model is stored in `self.finetuned_model`.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(
+    dataset: MoiraiDataset,
+    metrics: list[str] = ["MSE"],
+    output_transforms: transforms.Compose = None,
+    num_sample_flag: bool = False,
+    zero_shot: bool = True,
+    metric_only: bool = False,
+    **kwargs
+)
+```
+
+Evaluate the model on the given test dataset using the specified metrics.
+
+<ParamField path="dataset" type="MoiraiDataset" required>
+  Dataset to evaluate the model on.
+</ParamField>
+
+<ParamField path="metrics" type="list[str]" default="['MSE']">
+  Metrics to evaluate. Options: "MSE", "MASE".
+</ParamField>
+
+<ParamField path="output_transforms" type="transforms.Compose" default="None">
+  Transforms to apply on the model output.
+</ParamField>
+
+<ParamField path="num_sample_flag" type="bool" default="False">
+  If True, use number of samples for distribution sampling.
+</ParamField>
+
+<ParamField path="zero_shot" type="bool" default="True">
+  If True, use the standard model; else use the finetuned model.
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, only return metrics.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **When `metric_only=True`:**
+  
+  Dictionary containing:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+  - `mwsq`: Mean Weighted Scaled Quantile Loss
+  - `crps`: Continuous Ranked Probability Score
+
+  **When `metric_only=False`:**
+  
+  Tuple of (metrics, trues, preds, histories, quantile_preds):
+  - `metrics`: Dictionary of metrics
+  - `trues`: Ground truth values, shape (num_samples, num_ts, horizon_len)
+  - `preds`: Mean predictions, shape (num_samples, num_ts, horizon_len)
+  - `histories`: Historical values, shape (num_samples, num_ts, context_len)
+  - `quantile_preds`: Quantile predictions, shape (num_samples, num_ts, horizon_len, num_quantiles)
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(dataset: MoiraiDataset, zero_shot: bool = False, **kwargs)
+```
+
+Plot the results of the model on the given dataset.
+
+<ParamField path="dataset" type="MoiraiDataset" required>
+  Dataset containing the input data and relevant functions.
+</ParamField>
+
+<ParamField path="zero_shot" type="bool" default="False">
+  If True, use the standard model; else use the finetuned model.
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value. It displays visualizations.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import MoiraiTSModel
+from samay.dataset import MoiraiDataset
+
+# Initialize Moirai-MoE model
+config = {
+    "horizon_len": 96,
+    "context_len": 512,
+    "patch_size": 32,
+    "batch_size": 32,
+    "model_type": "moirai-moe"
+}
+model = MoiraiTSModel(
+    config=config,
+    model_type="moirai-moe",
+    model_size="small"
+)
+
+# Prepare dataset
+dataset = MoiraiDataset(...)
+
+# Zero-shot evaluation
+metrics = model.evaluate(dataset, zero_shot=True, metric_only=True)
+print(f"Zero-shot MSE: {metrics['mse']}")
+
+# Finetune model
+model.finetune(dataset, max_epochs=10, tf32=True)
+
+# Evaluate finetuned model
+metrics = model.evaluate(dataset, zero_shot=False, metric_only=True)
+print(f"Finetuned MSE: {metrics['mse']}")
+
+# Visualize
+model.plot(dataset, zero_shot=False)
+```
+
+## Notes
+
+- Moirai supports three variants: standard, MoE (Mixture of Experts), and Moirai2
+- The model uses patch-based tokenization for efficient processing
+- Moirai2 directly outputs quantile predictions, while earlier versions use sampling
+- The model supports variable context and horizon lengths through autoregressive generation
+- Finetuning uses frozen initial layers and only trains the last encoder layers and projection heads
+- For long horizons exceeding max patches, autoregressive forecasting is automatically applied

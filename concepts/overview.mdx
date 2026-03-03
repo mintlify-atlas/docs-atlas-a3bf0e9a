@@ -1,0 +1,188 @@
+---
+title: Architecture Overview
+description: Understanding Samay's unified API design for time series forecasting
+---
+
+Samay provides a unified, consistent API for working with multiple time series foundation models. The library is built around three core abstractions that work together seamlessly: **Models**, **Datasets**, and **Metrics**.
+
+## Design Philosophy
+
+Samay's architecture follows a simple, composable pattern:
+
+1. **Load a model** - Initialize a pre-trained foundation model from HuggingFace or with custom configuration
+2. **Load a dataset** - Prepare your time series data using model-specific dataset classes
+3. **Finetune** - Optionally adapt the model to your specific data
+4. **Forecast & Evaluate** - Generate predictions and measure performance
+
+This consistent workflow applies across all supported models (Chronos, TimesFM, Moirai, MOMENT, etc.).
+
+## Core Abstractions
+
+### BaseModel
+
+All models inherit from the `Basemodel` class (defined in `src/samay/model.py:58`), which provides a standard interface:
+
+```python
+class Basemodel:
+    def __init__(self, config=None, repo=None):
+        """Initialize model with config dict or HuggingFace repo ID."""
+        
+    def finetune(self, dataset: BaseDataset, **kwargs):
+        """Finetune the model on the given dataset."""
+        
+    def forecast(self, input, **kwargs):
+        """Generate forecast(s) from input data."""
+        
+    def evaluate(self, dataset: BaseDataset, **kwargs):
+        """Evaluate the model on a dataset."""
+        
+    def save(self, path):
+        """Save the model to disk."""
+```
+
+Every model implementation (ChronosModel, TimesfmModel, etc.) implements these methods, ensuring a consistent experience.
+
+### BaseDataset
+
+All datasets inherit from `BaseDataset` (defined in `src/samay/dataset.py:54`), which handles:
+
+- **Data loading** - From CSV files or HuggingFace datasets
+- **Preprocessing** - Model-specific transformations
+- **Batching** - PyTorch DataLoader integration
+- **Train/test splits** - Configurable boundaries
+
+```python
+class BaseDataset:
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = None,
+        path: str = None,
+        batchsize: int = 8,
+        mode: str = "train",
+        **kwargs,
+    ):
+        """Initialize dataset with common parameters."""
+        
+    def preprocess(self, **kwargs):
+        """Model-specific preprocessing logic."""
+        
+    def get_data_loader(self):
+        """Return PyTorch DataLoader."""
+```
+
+### Metrics
+
+Samay provides comprehensive evaluation metrics (defined in `src/samay/metric.py`):
+
+**Forecasting Metrics:**
+- MSE, MAE, RMSE - Standard error metrics
+- MAPE, SMAPE - Percentage-based errors
+- MASE - Scaled error metric
+- NRMSE - Normalized RMSE
+- ND - Normalized deviation
+
+**Probabilistic Metrics (for quantile forecasts):**
+- MSIS - Mean scaled interval score
+- MWSQ - Mean weighted squared quantile loss
+- CRPS - Continuous ranked probability score
+
+## Common Workflow
+
+Here's a typical workflow showing how the abstractions work together:
+
+```python
+from samay import ChronosModel, ChronosDataset
+
+# 1. Load model from HuggingFace
+model = ChronosModel(repo="amazon/chronos-t5-small")
+
+# 2. Load dataset
+train_data = ChronosDataset(
+    path="data/electricity.csv",
+    datetime_col="date",
+    mode="train",
+    boundaries=[0, 8000, 10000],
+    context_len=512,
+    horizon_len=96
+)
+
+test_data = ChronosDataset(
+    path="data/electricity.csv",
+    datetime_col="date",
+    mode="test",
+    boundaries=[0, 8000, 10000],
+    context_len=512,
+    horizon_len=96
+)
+
+# 3. Finetune (optional)
+model.finetune(train_data, lr=1e-4, epoch=5)
+
+# 4. Evaluate
+metrics = model.evaluate(
+    test_data,
+    horizon_len=96,
+    quantile_levels=[0.1, 0.5, 0.9],
+    metric_only=True
+)
+
+print(metrics)
+# {'mse': 0.12, 'mae': 0.25, 'mase': 0.89, 'crps': 0.15, ...}
+```
+
+## HuggingFace Integration
+
+Samay seamlessly integrates with HuggingFace Hub:
+
+- **Load pretrained models** using `repo` parameter
+- **Automatic downloads** - Models cached locally
+- **Device management** - Automatic GPU detection and allocation
+
+```python
+# Load from HuggingFace
+model = TimesfmModel(repo="google/timesfm-1.0-200m")
+
+# Or initialize with custom config
+model = ChronosModel(config={
+    "model_type": "seq2seq",
+    "context_length": 512,
+    "prediction_length": 64,
+    "n_tokens": 4096
+})
+```
+
+## Device Management
+
+Samay automatically manages GPU allocation:
+
+```python
+# From src/samay/model.py:67-71
+class Basemodel:
+    def __init__(self, config=None, repo=None):
+        least_used_gpu = get_least_used_gpu()
+        if least_used_gpu >= 0:
+            self.device = torch.device(f"cuda:{least_used_gpu}")
+        else:
+            self.device = torch.device("cpu")
+```
+
+The library automatically:
+- Detects available GPUs
+- Selects the least utilized GPU
+- Falls back to CPU if no GPU available
+- Moves models and data to the selected device
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Models" icon="microchip" href="/concepts/models">
+    Learn about the model interface and configuration
+  </Card>
+  <Card title="Datasets" icon="database" href="/concepts/datasets">
+    Understand dataset structure and preprocessing
+  </Card>
+  <Card title="Evaluation" icon="chart-line" href="/concepts/evaluation">
+    Explore available metrics and evaluation patterns
+  </Card>
+</CardGroup>

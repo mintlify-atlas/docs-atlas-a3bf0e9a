@@ -1,0 +1,213 @@
+---
+title: 'MoiraiDataset'
+description: 'Dataset class for Moirai universal time series forecasting model'
+icon: 'star'
+---
+
+## Overview
+
+Dataset class for Moirai, a universal time series forecasting model. Handles data preprocessing, transformation, and windowing for training and testing.
+
+## Class signature
+
+```python
+class MoiraiDataset(BaseDataset):
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = "date",
+        path: str = None,
+        boundaries: tuple = (0, 0, 0),
+        context_len: int = 128,
+        horizon_len: int = 32,
+        patch_size: int = 16,
+        batch_size: int = 16,
+        freq: str = None,
+        start_date: str = None,
+        end_date: str = None,
+        operation: str = "mean",
+        normalize: bool = True,
+        mode: str = "train",
+        htune: bool = False,
+        data_config: dict = None,
+        **kwargs,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Dataset name.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="date">
+  Column containing datetimes.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to CSV file.
+</ParamField>
+
+<ParamField path="boundaries" type="tuple" default="(0, 0, 0)">
+  Train/val/test split boundaries. Default splits as: 80% train, 20% test (or 60%/20%/20% if htune=True).
+</ParamField>
+
+<ParamField path="context_len" type="int" default="128">
+  Historical context length.
+</ParamField>
+
+<ParamField path="horizon_len" type="int" default="32">
+  Forecast horizon length.
+</ParamField>
+
+<ParamField path="patch_size" type="int" default="16">
+  Size of patches for patching mechanism.
+</ParamField>
+
+<ParamField path="batch_size" type="int" default="16">
+  Batch size for DataLoader.
+</ParamField>
+
+<ParamField path="freq" type="str" default="None">
+  Target frequency for resampling (e.g., `"h"` for hourly, `"d"` for daily). If None, uses inferred frequency.
+</ParamField>
+
+<ParamField path="start_date" type="str" default="None">
+  Start date for data subset (format: YYYY-MM-DD).
+</ParamField>
+
+<ParamField path="end_date" type="str" default="None">
+  End date for data subset (format: YYYY-MM-DD).
+</ParamField>
+
+<ParamField path="operation" type="str" default="mean">
+  Resampling operation: `"mean"`, `"sum"`, `"pad"`, `"ffill"`, or `"bfill"`.
+</ParamField>
+
+<ParamField path="normalize" type="bool" default="True">
+  Whether to normalize the data using StandardScaler.
+</ParamField>
+
+<ParamField path="mode" type="str" default="train">
+  Mode: `"train"`, `"val"`, or `"test"`.
+</ParamField>
+
+<ParamField path="htune" type="bool" default="False">
+  Hyperparameter tuning mode. If True, uses 60/20/20 split instead of 80/20.
+</ParamField>
+
+<ParamField path="data_config" type="dict" default="None">
+  Configuration dict with keys:
+  - `target_dim` (int): Target dimension (default: 1)
+  - `feat_dynamic_real_dim` (int): Dynamic real features dimension (default: 0)
+  - `past_feat_dynamic_real_dim` (int): Past dynamic real features dimension (default: 0)
+</ParamField>
+
+<ParamField path="kwargs" type="dict">
+  Extra options for DataLoader (e.g., `num_workers`, `pin_memory`, `persistent_workers`).
+</ParamField>
+
+## Methods
+
+### `__len__()`
+
+Return the number of items in the dataset.
+
+```python
+def __len__(self) -> int
+```
+
+**Returns:** `int` - Number of samples in the dataset.
+
+### `__getitem__(idx)`
+
+Get a data sample by index.
+
+```python
+def __getitem__(self, idx)
+```
+
+**Parameters:**
+- `idx` (int): Index of the data sample.
+
+**Returns:** Data sample with past and future fields.
+
+### `get_dataloader()`
+
+Returns the iterator for data batches.
+
+```python
+def get_dataloader()
+```
+
+**Returns:** `DataLoader` - PyTorch DataLoader for the dataset.
+
+### `_denormalize_data(data)`
+
+Denormalizes the data.
+
+```python
+def _denormalize_data(self, data: np.ndarray)
+```
+
+**Parameters:**
+- `data` (np.ndarray): Normalized data.
+
+**Returns:** `np.ndarray` - Denormalized data.
+
+## Example usage
+
+```python
+from samay.dataset import MoiraiDataset
+
+dataset = MoiraiDataset(
+    path="data/timeseries.csv",
+    datetime_col="timestamp",
+    context_len=512,
+    horizon_len=96,
+    patch_size=32,
+    freq="h",
+    normalize=True,
+    mode="train"
+)
+
+loader = dataset.get_dataloader()
+for batch in loader:
+    # Training logic here
+    pass
+```
+
+## Advanced usage with resampling
+
+```python
+# Resample hourly data to daily using mean
+dataset = MoiraiDataset(
+    path="data/hourly_data.csv",
+    datetime_col="timestamp",
+    start_date="2023-01-01",
+    end_date="2023-12-31",
+    freq="d",
+    operation="mean",
+    mode="train"
+)
+```
+
+## Features
+
+- Automatic frequency inference from datetime index
+- Support for data resampling with multiple operations
+- Forward and backward fill for missing values
+- StandardScaler normalization fitted on training data
+- Automatic windowing for test data
+- Support for multivariate time series with dynamic features
+- Patch-based processing for efficient computation
+
+## Data transformations
+
+The dataset applies the following transformations:
+
+1. Convert target data to numpy array
+2. Add observed values indicator for handling missing data
+3. Expand dimensions if needed (for univariate series)
+4. Add past target, observed target, and padding indicators
+5. Handle dynamic real features if specified

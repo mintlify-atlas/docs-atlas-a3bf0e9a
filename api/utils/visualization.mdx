@@ -1,0 +1,260 @@
+---
+title: Visualization Utilities
+description: Classes for visualizing time series forecasts, anomaly detection, imputation, and classification results
+---
+
+The `samay.visualization` module provides visualization classes for different time series tasks.
+
+## ForecastVisualization
+
+Visualize forecasting results with historical context, ground truth, and predictions.
+
+```python
+from samay.visualization import ForecastVisualization
+
+vis = ForecastVisualization(trues, preds, histories)
+vis.plot(channel_idx=0, time_idx=0, crop_history=False)
+```
+
+### Constructor
+
+<ParamField path="trues" type="array-like" required>
+  Ground truth values
+</ParamField>
+
+<ParamField path="preds" type="array-like" required>
+  Predicted values
+</ParamField>
+
+<ParamField path="histories" type="array-like" required>
+  Historical context values
+</ParamField>
+
+### plot Method
+
+<ParamField path="channel_idx" type="int" default="1">
+  Index of the channel (variate) to plot
+</ParamField>
+
+<ParamField path="time_idx" type="int" default="1">
+  Index of the time window to plot
+</ParamField>
+
+<ParamField path="crop_history" type="bool" default="False">
+  If `True`, crops the history to 3x the forecast length. If `False`, shows the full history
+</ParamField>
+
+### Example
+
+```python
+import numpy as np
+from samay.visualization import ForecastVisualization
+
+# Sample data
+trues = [np.random.randn(10, 24) for _ in range(100)]  # 100 windows, 10 channels, 24 timesteps
+preds = [np.random.randn(10, 24) for _ in range(100)]
+histories = [np.random.randn(10, 96) for _ in range(100)]  # 96 historical timesteps
+
+# Create visualization
+vis = ForecastVisualization(trues, preds, histories)
+
+# Plot specific channel and time window
+vis.plot(channel_idx=0, time_idx=5, crop_history=True)
+```
+
+---
+
+## ImputationVisualization
+
+Visualize imputation results showing ground truth, predictions, and missing value masks.
+
+```python
+from samay.visualization import ImputationVisualization
+
+vis = ImputationVisualization(trues, preds, masks)
+vis.plot()
+```
+
+### Constructor
+
+<ParamField path="trues" type="np.ndarray" required>
+  Ground truth values
+</ParamField>
+
+<ParamField path="preds" type="np.ndarray" required>
+  Predicted (imputed) values
+</ParamField>
+
+<ParamField path="masks" type="np.ndarray" required>
+  Binary mask indicating missing values (1 = missing, 0 = observed)
+</ParamField>
+
+### plot Method
+
+Plots a randomly selected time window and channel, showing both the time series and the missing value mask.
+
+### Example
+
+```python
+import numpy as np
+from samay.visualization import ImputationVisualization
+
+# Sample data (100 samples, 5 channels, 48 timesteps)
+trues = np.random.randn(100, 5, 48)
+preds = np.random.randn(100, 5, 48)
+masks = np.random.randint(0, 2, size=(100, 5, 48))  # Binary mask
+
+# Create and display visualization
+vis = ImputationVisualization(trues, preds, masks)
+vis.plot()
+```
+
+---
+
+## AnomalyDetectionVisualization
+
+Visualize anomaly detection results with observed values, predictions, and anomaly scores.
+
+```python
+from samay.visualization import AnomalyDetectionVisualization
+
+vis = AnomalyDetectionVisualization(trues, preds, labels)
+vis.plot()
+```
+
+### Constructor
+
+<ParamField path="trues" type="array-like" required>
+  Observed values
+</ParamField>
+
+<ParamField path="preds" type="array-like" required>
+  Predicted values
+</ParamField>
+
+<ParamField path="labels" type="array-like" required>
+  Binary labels indicating anomalies (1 = anomaly, 0 = normal)
+</ParamField>
+
+### plot Method
+
+Displays a plot showing:
+- Observed values (blue)
+- Predicted values (red)
+- Anomaly scores (black, calculated as squared error)
+
+The plot focuses on a region around known anomalies (hardcoded indices: 74158-74984 with 512-step buffer).
+
+### Example
+
+```python
+import numpy as np
+from samay.visualization import AnomalyDetectionVisualization
+
+# Sample data
+trues = np.random.randn(100000)
+preds = trues + np.random.randn(100000) * 0.1
+labels = np.zeros(100000)
+labels[74158:74984] = 1  # Mark anomaly region
+
+# Create and display visualization
+vis = AnomalyDetectionVisualization(trues, preds, labels)
+vis.plot()
+```
+
+---
+
+## ClassificationVisualization
+
+Visualize time series classification results using PCA dimensionality reduction of embeddings.
+
+```python
+from samay.visualization import ClassificationVisualization
+
+vis = ClassificationVisualization(embeddings, labels)
+vis.plot()
+```
+
+### Constructor
+
+<ParamField path="embeddings" type="np.ndarray" required>
+  Time series embeddings (feature vectors)
+</ParamField>
+
+<ParamField path="labels" type="np.ndarray" required>
+  Class labels for each embedding
+</ParamField>
+
+### plot Method
+
+Creates a 2D scatter plot of embeddings after PCA dimensionality reduction, colored by class labels.
+
+### Example
+
+```python
+import numpy as np
+from samay.visualization import ClassificationVisualization
+
+# Sample embeddings (500 samples, 128 features)
+embeddings = np.random.randn(500, 128)
+labels = np.random.randint(0, 5, size=500)  # 5 classes
+
+# Create and display visualization
+vis = ClassificationVisualization(embeddings, labels)
+vis.plot()
+```
+
+---
+
+## Legacy Visualization Function
+
+The module also provides a legacy `visualize` function from `samay.utils` for backward compatibility.
+
+```python
+from samay.utils import visualize
+
+visualize(
+    task_name="forecasting",
+    trues=trues,
+    preds=preds,
+    history=history,
+    context_len=512,
+    dataset="ETTh1",
+    freq="1H"
+)
+```
+
+See the [Data Processing Utilities](/api/utils/data-processing) for more details on the legacy `visualize` function.
+
+---
+
+## Usage Notes
+
+### Task-Specific Visualizations
+
+Each visualization class is designed for a specific task:
+
+- **ForecastVisualization**: Shows historical context, ground truth, and forecast
+- **ImputationVisualization**: Shows missing value masks and imputed values
+- **AnomalyDetectionVisualization**: Shows anomaly scores alongside observations
+- **ClassificationVisualization**: Shows embedding space in 2D using PCA
+
+### Customization
+
+All visualization classes use `matplotlib` under the hood. You can customize plots by:
+
+1. Modifying the plot after calling `.plot()`
+2. Using `plt.figure()` before calling `.plot()` to set figure size
+3. Adding additional plot elements after `.plot()` returns
+
+```python
+import matplotlib.pyplot as plt
+from samay.visualization import ForecastVisualization
+
+plt.figure(figsize=(16, 6))
+vis = ForecastVisualization(trues, preds, histories)
+vis.plot(channel_idx=0, time_idx=0)
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig("forecast.png", dpi=300)
+```

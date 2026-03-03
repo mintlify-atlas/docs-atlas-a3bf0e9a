@@ -1,0 +1,157 @@
+---
+title: "TimeMoEModel"
+description: "Time-MoE: Mixture of Experts model for efficient time series forecasting"
+---
+
+## Class Signature
+
+```python
+class TimeMoEModel(Basemodel):
+    def __init__(self, config=None, repo=None, **kwargs)
+```
+
+The `TimeMoEModel` class implements Time-MoE, a time series forecasting model that uses a Mixture of Experts (MoE) architecture for efficient and accurate predictions.
+
+## Initialization Parameters
+
+<ParamField path="config" type="dict" default="None">
+  Model configuration dictionary. Used when initializing a new model without pre-trained weights. Must contain TimeMoeConfig parameters.
+</ParamField>
+
+<ParamField path="repo" type="str" default="None">
+  Hugging Face model repository ID for loading pre-trained models.
+</ParamField>
+
+## Methods
+
+### finetune()
+
+```python
+def finetune(dataset: TimeMoEDataset, **kwargs)
+```
+
+Finetune the model on the given dataset.
+
+<ParamField path="dataset" type="TimeMoEDataset" required>
+  Dataset for finetuning. The dataset's horizon_len is automatically set in the model config.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Optional keyword arguments (currently uses default hyperparameters: lr=1e-4, epochs=5).
+</ParamField>
+
+<ResponseField name="return" type="None">
+  The model is finetuned in-place and set to evaluation mode after training.
+</ResponseField>
+
+---
+
+### evaluate()
+
+```python
+def evaluate(dataset: TimeMoEDataset, metric_only: bool = False, **kwargs)
+```
+
+Evaluate the model on the given dataset.
+
+<ParamField path="dataset" type="TimeMoEDataset" required>
+  Dataset for evaluation.
+</ParamField>
+
+<ParamField path="metric_only" type="bool" default="False">
+  If True, return only metrics.
+</ParamField>
+
+<ResponseField name="return" type="Dict[str, float] | Tuple">
+  **When `metric_only=True`:**
+  
+  Dictionary containing:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error
+  - `mase`: Mean Absolute Scaled Error
+  - `mape`: Mean Absolute Percentage Error
+  - `rmse`: Root Mean Squared Error
+  - `nrmse`: Normalized RMSE
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - `msis`: Mean Scaled Interval Score
+  - `nd`: Normalized Deviation
+
+  **When `metric_only=False`:**
+  
+  Tuple of (metrics, trues, preds, histories):
+  - `metrics`: Dictionary of metrics (as above)
+  - `trues`: True values, shape (batch_size, n_channels, horizon_len)
+  - `preds`: Predicted values, shape (batch_size, n_channels, horizon_len)
+  - `histories`: Historical context, shape (batch_size, n_channels, context_len)
+</ResponseField>
+
+---
+
+### plot()
+
+```python
+def plot(dataset: TimeMoEDataset, **kwargs)
+```
+
+Plot the results of the model on the given dataset.
+
+<ParamField path="dataset" type="TimeMoEDataset" required>
+  Dataset for plotting.
+</ParamField>
+
+<ParamField path="**kwargs" type="dict">
+  Additional keyword arguments forwarded to visualization.
+</ParamField>
+
+<ResponseField name="return" type="None">
+  This method does not return a value. It displays visualizations.
+</ResponseField>
+
+## Usage Example
+
+```python
+from samay.model import TimeMoEModel
+from samay.dataset import TimeMoEDataset
+
+# Load pre-trained model
+model = TimeMoEModel(repo="Maple728/TimeMoE-50M")
+
+# Or initialize with config
+from samay.models.Time_MoE.time_moe.models.configuration_time_moe import TimeMoeConfig
+
+config = TimeMoeConfig(
+    context_length=512,
+    prediction_length=96,
+    # ... other TimeMoE config parameters
+)
+model = TimeMoEModel(config=config.__dict__)
+
+# Prepare dataset
+dataset = TimeMoEDataset(
+    context_len=512,
+    horizon_len=96,
+    n_channels=7
+)
+
+# Finetune
+model.finetune(dataset)
+
+# Evaluate
+metrics, trues, preds, histories = model.evaluate(
+    dataset,
+    metric_only=False
+)
+print(f"RMSE: {metrics['rmse']}")
+
+# Visualize results
+model.plot(dataset)
+```
+
+## Notes
+
+- Time-MoE uses a Mixture of Experts architecture to efficiently handle diverse time series patterns
+- The model uses autoregressive generation via the `generate()` method for inference
+- During finetuning, the model's `horizon_lengths` config is automatically updated to match the dataset
+- Data is automatically denormalized during evaluation if the dataset was normalized
+- The model reshapes predictions to (n_channels, batch, horizon) format internally
+- Loss masks can be provided during finetuning to handle variable-length sequences

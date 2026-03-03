@@ -1,0 +1,514 @@
+---
+title: Model Quantization
+description: Reduce model size and speed up inference with quantization
+---
+
+## Why Quantize Models?
+
+Quantization reduces model size and accelerates inference by converting weights from 32-bit floating point to lower precision formats (8-bit integers or 16-bit floats). Benefits include:
+
+- **Smaller model size:** 50-75% reduction in disk space and memory usage
+- **Faster inference:** 2-4x speedup on CPU, especially for edge devices
+- **Lower deployment costs:** Reduced bandwidth for model distribution
+- **Minimal accuracy loss:** Typically &lt;1% degradation with int8 quantization
+
+<Note>
+  Quantization is most beneficial when deploying on resource-constrained devices (mobile, edge) or when serving many concurrent requests.
+</Note>
+
+## Models Supporting Quantization
+
+| Model | Int8 | Float16 | Approach |
+|-------|------|---------|----------|
+| **LPTM** | ✅ | ✅ | PyTorch quantization |
+| **MOMENT** | ✅ | ✅ | PyTorch quantization |
+
+## Step-by-Step Workflow
+
+<Steps>
+  <Step title="Train or load model">
+    Start with a trained model:
+
+    ```python
+    from samay.model import LPTMModel
+    from samay.dataset import LPTMDataset
+
+    # Train model
+    config = {
+        "task_name": "forecasting",
+        "forecast_horizon": 192,
+        "head_dropout": 0,
+        "weight_decay": 0,
+        "max_patch": 16,
+        "freeze_encoder": True,
+        "freeze_embedder": True,
+        "freeze_head": False,
+        "freeze_segment": True,
+    }
+    model = LPTMModel(config)
+
+    train_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="data/ETTh1.csv",
+        mode="train",
+        horizon=192,
+    )
+
+    finetuned_model = model.finetune(train_dataset)
+    ```
+  </Step>
+
+  <Step title="Quantize the model">
+    Apply quantization:
+
+    ```python
+    # Quantize to int8
+    quantized_model = model.quantize(quant_type="int8")
+    ```
+
+    Or for float16 (half precision):
+
+    ```python
+    quantized_model = model.quantize(quant_type="float16")
+    ```
+  </Step>
+
+  <Step title="Evaluate quantized model">
+    Verify performance degradation is acceptable:
+
+    ```python
+    val_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="data/ETTh1.csv",
+        mode="test",
+        horizon=192,
+    )
+
+    # Evaluate original model
+    metrics_original, _, _, _ = model.evaluate(
+        val_dataset, task_name="forecasting"
+    )
+
+    # Evaluate quantized model
+    metrics_quantized, _, _, _ = quantized_model.evaluate(
+        val_dataset, task_name="forecasting"
+    )
+
+    print(f"Original MSE: {metrics_original}")
+    print(f"Quantized MSE: {metrics_quantized}")
+    print(f"Degradation: {(metrics_quantized - metrics_original) / metrics_original * 100:.2f}%")
+    ```
+  </Step>
+
+  <Step title="Compare model sizes">
+    Check disk space savings:
+
+    ```python
+    import os
+
+    # Save models
+    model.save("model_original.pt")
+    quantized_model.save("model_quantized.pt")
+
+    # Compare sizes
+    size_original = os.path.getsize("model_original.pt") / (1024**2)  # MB
+    size_quantized = os.path.getsize("model_quantized.pt") / (1024**2)
+
+    print(f"Original size: {size_original:.2f} MB")
+    print(f"Quantized size: {size_quantized:.2f} MB")
+    print(f"Reduction: {(1 - size_quantized/size_original) * 100:.1f}%")
+    ```
+  </Step>
+</Steps>
+
+## Real Examples
+
+### LPTM Quantization
+
+From `lptm_quantization.ipynb`:
+
+```python
+from samay.model import LPTMModel
+from samay.dataset import LPTMDataset
+
+# Initialize and fine-tune model
+config = {
+    "task_name": "forecasting",
+    "forecast_horizon": 192,
+    "head_dropout": 0,
+    "weight_decay": 0,
+    "max_patch": 16,
+    "freeze_encoder": True,
+    "freeze_embedder": True,
+    "freeze_head": False,
+    "freeze_segment": True,
+}
+model = LPTMModel(config)
+
+train_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="train",
+    horizon=192,
+)
+
+finetuned_model = model.finetune(train_dataset)
+
+# Quantize to int8
+quantized_model = model.quantize(quant_type="int8")
+
+# Evaluate
+val_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="test",
+    horizon=192,
+)
+
+metrics, trues, preds, histories = quantized_model.evaluate(
+    val_dataset, task_name="forecasting"
+)
+print(f"Quantized model MSE: {metrics}")
+```
+
+### MOMENT Quantization
+
+From `moment_quantization.ipynb`:
+
+```python
+from samay.model import MomentModel
+from samay.dataset import MomentDataset
+
+repo = "AutonLab/MOMENT-1-large"
+config = {
+    "task_name": "forecasting",
+    "forecast_horizon": 192,
+    "head_dropout": 0.1,
+    "weight_decay": 0,
+    "freeze_encoder": True,
+    "freeze_embedder": True,
+    "freeze_head": False,
+}
+mmt = MomentModel(config=config, repo=repo)
+
+# Fine-tune
+train_dataset = MomentDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="train",
+    horizon_len=192
+)
+
+finetuned_model = mmt.finetune(train_dataset, task_name="forecasting")
+
+# Quantize
+quantized_model = mmt.quantize(quant_type="int8")
+
+# Evaluate
+val_dataset = MomentDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="test",
+    horizon_len=192
+)
+
+metrics = quantized_model.evaluate(val_dataset, task_name="forecasting")
+print(metrics)
+```
+
+## Quantization Types
+
+### Int8 Quantization (Recommended)
+
+**Pros:**
+- 75% size reduction (32-bit → 8-bit)
+- 2-4x inference speedup on CPU
+- Minimal accuracy loss (&lt;1% typically)
+
+**Cons:**
+- Requires calibration (handled automatically)
+- May degrade accuracy on small models
+
+**Use when:** Deploying to edge devices, reducing cloud costs, or serving high QPS
+
+```python
+quantized_model = model.quantize(quant_type="int8")
+```
+
+### Float16 Quantization
+
+**Pros:**
+- 50% size reduction (32-bit → 16-bit)
+- Faster on GPUs with Tensor Cores
+- Near-zero accuracy loss
+
+**Cons:**
+- Smaller speedup than int8 on CPU
+- GPU-dependent performance
+
+**Use when:** GPU deployment, minimal accuracy degradation required
+
+```python
+quantized_model = model.quantize(quant_type="float16")
+```
+
+## Performance Implications
+
+### Accuracy Trade-offs
+
+Typical accuracy degradation:
+
+| Quantization | Accuracy Loss | Use Case |
+|--------------|---------------|----------|
+| Float16 | &lt;0.1% | Production deployments |
+| Int8 | 0.5-1% | Edge devices, batch inference |
+| Int4 | 2-5% | Extreme compression (not in Samay) |
+
+<Tip>
+  Always evaluate quantized models on your validation set. Some models/tasks are more sensitive to quantization.
+</Tip>
+
+### Inference Speed
+
+Speedup depends on hardware:
+
+| Hardware | Int8 Speedup | Float16 Speedup |
+|----------|--------------|------------------|
+| CPU (x86) | 2-4x | 1.1-1.3x |
+| CPU (ARM) | 3-5x | 1.2-1.5x |
+| GPU (V100) | 1.2-1.5x | 1.5-2x |
+| GPU (T4) | 1.5-2x | 2-3x |
+| TPU | 2-3x | 1.8-2.5x |
+
+### Memory Usage
+
+```python
+import torch
+
+def get_model_size(model):
+    """Calculate model size in MB"""
+    param_size = 0
+    for param in model.parameters():
+        param_size += param.nelement() * param.element_size()
+    buffer_size = 0
+    for buffer in model.buffers():
+        buffer_size += buffer.nelement() * buffer.element_size()
+    size_mb = (param_size + buffer_size) / (1024**2)
+    return size_mb
+
+print(f"Original model: {get_model_size(model):.2f} MB")
+print(f"Int8 model: {get_model_size(quantized_model):.2f} MB")
+```
+
+## Advanced Techniques
+
+### Post-Training Quantization (PTQ)
+
+Samay uses static quantization by default:
+
+```python
+# Automatic calibration during quantization
+quantized_model = model.quantize(
+    quant_type="int8",
+    calibration_data=train_dataset  # Optional: provide calibration data
+)
+```
+
+### Quantization-Aware Training (QAT)
+
+For minimal accuracy loss, simulate quantization during training:
+
+```python
+# Not directly supported in current Samay API
+# Manually wrap model for QAT:
+import torch.quantization as quant
+
+model.qconfig = quant.get_default_qat_qconfig('fbgemm')
+quant.prepare_qat(model, inplace=True)
+
+# Fine-tune with quantization simulation
+finetuned_model = model.finetune(train_dataset)
+
+# Convert to quantized model
+quant.convert(model, inplace=True)
+```
+
+### Selective Quantization
+
+Quantize only specific layers:
+
+```python
+# Quantize embeddings and attention, keep head in float32
+from torch import nn
+import torch.quantization as quant
+
+model.encoder = quant.quantize_dynamic(
+    model.encoder, {nn.Linear, nn.LSTM}, dtype=torch.qint8
+)
+# Keep model.head in float32 for accuracy
+```
+
+### Mixed Precision
+
+Combine int8 and float16:
+
+```python
+# Quantize heavy layers to int8, keep sensitive layers in float16
+model.encoder = quant.quantize_dynamic(
+    model.encoder, {nn.Linear}, dtype=torch.qint8
+)
+model.head = model.head.half()  # float16
+```
+
+## Deployment Considerations
+
+<AccordionGroup>
+  <Accordion title="Choose the right backend">
+    **FBGEMM (x86 CPU):** Use for Intel/AMD CPUs
+    
+    ```python
+    quantized_model = model.quantize(
+        quant_type="int8",
+        backend="fbgemm"  # default
+    )
+    ```
+
+    **QNNPACK (ARM CPU):** Use for mobile/Raspberry Pi
+    
+    ```python
+    quantized_model = model.quantize(
+        quant_type="int8",
+        backend="qnnpack"
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Export for serving">
+    Save quantized model for TorchServe or ONNX:
+
+    ```python
+    # Save for TorchServe
+    torch.save(quantized_model.state_dict(), "model_int8.pth")
+
+    # Export to ONNX (with quantization)
+    import torch.onnx
+    dummy_input = torch.randn(1, 512)  # batch_size, seq_len
+    torch.onnx.export(
+        quantized_model,
+        dummy_input,
+        "model_int8.onnx",
+        opset_version=13,
+        dynamic_axes={'input': {0: 'batch_size'}}
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Benchmark before deploying">
+    Measure latency on target hardware:
+
+    ```python
+    import time
+    import torch
+
+    # Warmup
+    for _ in range(10):
+        _ = model(dummy_input)
+
+    # Benchmark original
+    start = time.time()
+    for _ in range(100):
+        _ = model(dummy_input)
+    original_latency = (time.time() - start) / 100
+
+    # Benchmark quantized
+    start = time.time()
+    for _ in range(100):
+        _ = quantized_model(dummy_input)
+    quantized_latency = (time.time() - start) / 100
+
+    print(f"Original: {original_latency*1000:.2f} ms/sample")
+    print(f"Quantized: {quantized_latency*1000:.2f} ms/sample")
+    print(f"Speedup: {original_latency/quantized_latency:.2f}x")
+    ```
+  </Accordion>
+
+  <Accordion title="Monitor accuracy in production">
+    Track quantized model performance:
+
+    ```python
+    # Log predictions for drift monitoring
+    from sklearn.metrics import mean_squared_error
+
+    y_true = ...
+    y_pred_original = model.predict(X)
+    y_pred_quantized = quantized_model.predict(X)
+
+    mse_original = mean_squared_error(y_true, y_pred_original)
+    mse_quantized = mean_squared_error(y_true, y_pred_quantized)
+
+    # Alert if degradation exceeds threshold
+    if (mse_quantized - mse_original) / mse_original > 0.02:  # 2% threshold
+        print("Warning: Quantized model accuracy degraded significantly")
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<Warning>
+  **Accuracy drops significantly (>5%)?**
+  - Try float16 instead of int8
+  - Use Quantization-Aware Training (QAT)
+  - Increase calibration data size
+  - Selectively quantize (keep sensitive layers in float32)
+</Warning>
+
+<Warning>
+  **No speedup on GPU?**
+  - Int8 provides minimal GPU speedup—use float16 instead
+  - Ensure GPU supports Tensor Cores (V100, T4, A100)
+  - Check if batch size is large enough (int8 benefits from batching)
+</Warning>
+
+<Warning>
+  **Model fails to quantize?**
+  - Some operations (e.g., certain custom layers) are not quantizable
+  - Check PyTorch version compatibility
+  - Use dynamic quantization as fallback
+</Warning>
+
+## Best Practices
+
+<Check>
+  ✅ **Always validate** quantized models on a held-out test set
+</Check>
+
+<Check>
+  ✅ **Start with float16** for minimal risk, then try int8 if needed
+</Check>
+
+<Check>
+  ✅ **Benchmark on target hardware** before deploying
+</Check>
+
+<Check>
+  ✅ **Fine-tune before quantizing** for best accuracy/size trade-off
+</Check>
+
+<Check>
+  ✅ **Use quantization for inference only**, not training
+</Check>
+
+## Next Steps
+
+- **Need to deploy?** See [Model Deployment Guide](/deployment/overview)
+- **Quantization not enough?** Try [model distillation or pruning](/advanced/optimization)
+- **Want to measure impact?** Use [benchmarking tools](/tools/benchmarking)
+
+For more examples, see the [quantization notebooks](https://github.com/your-repo/Samay/tree/main/example).

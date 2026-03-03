@@ -1,80 +1,271 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get started with Samay in 5 minutes - load a model, prepare data, and make forecasts
 ---
 
-## Get started in three steps
+## Your First Forecast in 5 Minutes
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through making your first time-series forecast using Samay. We'll use the LPTM model for this example.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Import required libraries">
+    ```python
+    from samay.model import LPTMModel
+    from samay.dataset import LPTMDataset
+    ```
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+  <Step title="Load a pre-trained model">
+    Configure and load the LPTM model:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```python
+    config = {
+        "task_name": "forecasting",
+        "forecast_horizon": 192,
+        "freeze_encoder": True,   # Freeze the patch embedding layer
+        "freeze_embedder": True,  # Freeze the transformer encoder
+        "freeze_head": False,     # The linear forecasting head must be trained
+    }
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    model = LPTMModel(config)
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <Note>
+      The model will automatically download pre-trained weights from HuggingFace on first use.
+    </Note>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Prepare your dataset">
+    Load your time-series data. For this example, we'll use the ETT (Electricity Transformer Temperature) dataset:
+    
+    ```python
+    train_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="./data/ETTh1.csv",
+        mode="train",
+        horizon=192,
+    )
+    
+    val_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="./data/ETTh1.csv",
+        mode="test",
+        horizon=192,
+    )
+    ```
+    
+    <Info>
+      The dataset expects a CSV file with a datetime column and one or more value columns.
+    </Info>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Fine-tune the model (optional)">
+    For better performance on your specific dataset, fine-tune the model:
+    
+    ```python
+    finetuned_model = model.finetune(train_dataset)
+    ```
+    
+    This will train the forecasting head while keeping the pre-trained encoder frozen.
+  </Step>
 
-### Step 3: Go live
+  <Step title="Make predictions">
+    Evaluate the model and get predictions:
+    
+    ```python
+    metrics, trues, preds, histories = model.evaluate(
+        val_dataset, 
+        task_name="forecasting"
+    )
+    
+    print(f"MSE: {metrics}")
+    ```
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Visualize results">
+    Plot the forecasts against ground truth:
+    
+    ```python
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # Convert to numpy arrays
+    trues = np.array(trues)
+    preds = np.array(preds)
+    histories = np.array(histories)
+    
+    # Pick a random sample to visualize
+    channel_idx = np.random.randint(0, 7)
+    time_index = np.random.randint(0, trues.shape[0])
+    
+    history = histories[time_index, channel_idx, :]
+    true = trues[time_index, channel_idx, :]
+    pred = preds[time_index, channel_idx, :]
+    
+    plt.figure(figsize=(12, 4))
+    
+    # Plot history
+    plt.plot(range(len(history)), history, 
+             label="History", c="darkblue")
+    
+    # Plot ground truth and prediction
+    offset = len(history)
+    plt.plot(range(offset, offset + len(true)), true, 
+             label="Ground Truth", color="darkblue", 
+             linestyle="--", alpha=0.5)
+    plt.plot(range(offset, offset + len(pred)), pred, 
+             label="Forecast", color="red", linestyle="--")
+    
+    plt.title(f"Forecast Example (idx={time_index}, channel={channel_idx})")
+    plt.xlabel("Time")
+    plt.ylabel("Value")
+    plt.legend()
+    plt.show()
+    ```
+  </Step>
+</Steps>
 
-## Next steps
+## Zero-Shot Forecasting Example
 
-Now that you have your docs running, explore these key features:
+You can also use models without fine-tuning for zero-shot forecasting:
+
+<CodeGroup>
+```python TimesFM
+from samay.model import TimesfmModel
+from samay.dataset import TimesfmDataset
+
+# Load model
+repo = "google/timesfm-1.0-200m-pytorch"
+config = {
+    "context_len": 512,
+    "horizon_len": 192,
+    "backend": "gpu",
+    "per_core_batch_size": 32,
+}
+
+model = TimesfmModel(config=config, repo=repo)
+
+# Prepare dataset
+val_dataset = TimesfmDataset(
+    name="ett", 
+    datetime_col='date', 
+    path='data/ETTh1.csv',
+    mode='test', 
+    context_len=512, 
+    horizon_len=192
+)
+
+# Zero-shot evaluation
+metrics, trues, preds, histories = model.evaluate(val_dataset)
+print(metrics)
+```
+
+```python MOIRAI
+from samay.dataset import MoiraiDataset
+from samay.model import MoiraiTSModel
+
+# Load model
+repo = "Salesforce/moirai-2.0-R-small"
+config = {
+    "context_len": 128,
+    "horizon_len": 64,
+    "num_layers": 100,
+    "model_type": "moirai2",
+    "model_size": "small"
+}
+
+model = MoiraiTSModel(repo=repo, config=config)
+
+# Prepare dataset
+test_dataset = MoiraiDataset(
+    name="ett", 
+    mode="test", 
+    path="data/ETTh1.csv", 
+    datetime_col="date", 
+    freq="h",
+    context_len=128, 
+    horizon_len=64
+)
+
+# Zero-shot forecasting
+metrics, trues, preds, histories = model.evaluate(test_dataset)
+print(metrics)
+```
+</CodeGroup>
+
+## Understanding the Outputs
+
+When you call `model.evaluate()`, you get four outputs:
+
+<ResponseField name="metrics" type="dict">
+  Dictionary containing evaluation metrics:
+  - `mse`: Mean Squared Error
+  - `mae`: Mean Absolute Error  
+  - `rmse`: Root Mean Squared Error
+  - `mape`: Mean Absolute Percentage Error
+  - `smape`: Symmetric Mean Absolute Percentage Error
+  - And more depending on the model
+</ResponseField>
+
+<ResponseField name="trues" type="numpy.ndarray">
+  Ground truth values with shape `(num_samples, num_channels, horizon_length)`
+</ResponseField>
+
+<ResponseField name="preds" type="numpy.ndarray">
+  Model predictions with shape `(num_samples, num_channels, horizon_length)`
+</ResponseField>
+
+<ResponseField name="histories" type="numpy.ndarray">
+  Historical context used for predictions with shape `(num_samples, num_channels, context_length)`
+</ResponseField>
+
+## Common Use Cases
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Single-step Forecasting" icon="arrow-right">
+    Predict the next time step
+  </Card>
+  <Card title="Multi-step Forecasting" icon="arrows-right">
+    Predict multiple future time steps
+  </Card>
+  <Card title="Multivariate Forecasting" icon="chart-line">
+    Handle multiple time series simultaneously
+  </Card>
+  <Card title="Transfer Learning" icon="shuffle">
+    Fine-tune on your domain-specific data
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Model Guides" icon="book" href="/models/lptm">
+    Learn about specific models in detail
+  </Card>
+  <Card title="Example Notebooks" icon="code" href="https://github.com/AdityaLab/Samay/tree/main/example">
+    Explore complete code examples
+  </Card>
+  <Card title="API Reference" icon="file-code" href="/api/models/base">
+    Detailed API documentation
+  </Card>
+</CardGroup>
+
+## Tips for Success
+
+<Tip>
+  **Start with zero-shot**: Try models without fine-tuning first to establish a baseline.
+</Tip>
+
+<Tip>
+  **Normalize your data**: Most models perform better with normalized time series.
+</Tip>
+
+<Tip>
+  **Experiment with context length**: Longer context can improve accuracy but increases computation.
+</Tip>
+
+<Tip>
+  **Monitor GPU memory**: Large models may require reducing batch size on smaller GPUs.
+</Tip>

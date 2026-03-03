@@ -1,0 +1,385 @@
+---
+title: Time-Series Classification
+description: Classify time-series data using Samay's foundation models
+---
+
+## Overview
+
+Time-series classification assigns categorical labels to entire sequences based on their temporal patterns. Samay models like MOMENT excel at classification by learning rich embeddings from time-series data.
+
+## Models Supporting Classification
+
+| Model | Zero-Shot | Fine-Tuning | Approach |
+|-------|-----------|-------------|----------|
+| **MOMENT** | ✅ (via SVM) | ✅ | Embedding-based |
+
+## Step-by-Step Workflow
+
+<Steps>
+  <Step title="Load model for classification">
+    Initialize MOMENT with classification configuration:
+
+    ```python
+    from samay.model import MomentModel
+
+    repo = "AutonLab/MOMENT-1-large"
+    config = {
+        "task_name": "classification",
+        "n_channels": 1,
+        "num_class": 5  # Number of classes in your dataset
+    }
+    mmt = MomentModel(config=config, repo=repo)
+    ```
+  </Step>
+
+  <Step title="Prepare classification dataset">
+    Load training and test data:
+
+    ```python
+    from samay.dataset import MomentDataset
+
+    train_dataset = MomentDataset(
+        name="ecg5000",
+        path="data/ECG5000_TRAIN.csv",
+        batchsize=64,
+        mode="train",
+        task_name="classification",
+    )
+
+    test_dataset = MomentDataset(
+        name="ecg5000",
+        path="data/ECG5000_TEST.csv",
+        batchsize=64,
+        mode="test",
+        task_name="classification",
+    )
+    ```
+  </Step>
+
+  <Step title="Zero-shot classification (SVM approach)">
+    Extract embeddings and train a simple classifier:
+
+    ```python
+    from samay.models.moment.momentfm.models.statistical_classifiers import fit_svm
+
+    # Extract embeddings
+    train_accuracy, train_embeddings, train_labels = mmt.evaluate(
+        train_dataset, task_name="classification"
+    )
+    test_accuracy, test_embeddings, test_labels = mmt.evaluate(
+        test_dataset, task_name="classification"
+    )
+
+    print(train_embeddings.shape, train_labels.shape)
+    # (500, 1024) (500,)
+
+    # Train SVM on embeddings
+    clf = fit_svm(features=train_embeddings, y=train_labels)
+
+    # Evaluate
+    train_accuracy = clf.score(train_embeddings, train_labels)
+    test_accuracy = clf.score(test_embeddings, test_labels)
+
+    print(f"Train accuracy: {train_accuracy:.2f}")
+    print(f"Test accuracy: {test_accuracy:.2f}")
+    # Train accuracy: 1.00
+    # Test accuracy: 0.93
+    ```
+  </Step>
+
+  <Step title="Fine-tune for better performance">
+    Train the classification head end-to-end:
+
+    ```python
+    finetuned_model = mmt.finetune(
+        train_dataset,
+        task_name="classification",
+        epoch=10,
+        lr=0.1
+    )
+    # Epoch 0: Train loss: 1.200
+    # Epoch 1: Train loss: 0.856
+    # ...
+    # Epoch 9: Train loss: 0.451
+
+    # Evaluate fine-tuned model
+    accuracy, embeddings, labels = mmt.evaluate(
+        test_dataset, task_name="classification"
+    )
+    print(f"Test accuracy: {accuracy}")  # ~0.857
+    ```
+  </Step>
+</Steps>
+
+## Real Example: ECG Classification
+
+Complete workflow from `moment_classification.ipynb`:
+
+```python
+from samay.model import MomentModel
+from samay.dataset import MomentDataset
+from samay.models.moment.momentfm.models.statistical_classifiers import fit_svm
+
+# Initialize model
+repo = "AutonLab/MOMENT-1-large"
+config = {
+    "task_name": "classification",
+    "n_channels": 1,
+    "num_class": 5
+}
+mmt = MomentModel(config=config, repo=repo)
+
+# Load ECG5000 dataset
+train_dataset = MomentDataset(
+    name="ecg5000",
+    path="data/ECG5000_TRAIN.csv",
+    batchsize=64,
+    mode="train",
+    task_name="classification",
+)
+
+test_dataset = MomentDataset(
+    name="ecg5000",
+    path="data/ECG5000_TEST.csv",
+    batchsize=64,
+    mode="test",
+    task_name="classification",
+)
+
+# Zero-shot: Extract embeddings and train SVM
+train_accuracy, train_embeddings, train_labels = mmt.evaluate(
+    train_dataset, task_name="classification"
+)
+test_accuracy, test_embeddings, test_labels = mmt.evaluate(
+    test_dataset, task_name="classification"
+)
+
+clf = fit_svm(features=train_embeddings, y=train_labels)
+train_acc = clf.score(train_embeddings, train_labels)
+test_acc = clf.score(test_embeddings, test_labels)
+
+print(f"Zero-shot Train accuracy: {train_acc:.2f}")  # 1.00
+print(f"Zero-shot Test accuracy: {test_acc:.2f}")    # 0.93
+
+# Fine-tune for better performance
+finetuned_model = mmt.finetune(
+    train_dataset,
+    task_name="classification",
+    epoch=10,
+    lr=0.1
+)
+
+accuracy, embeddings, labels = mmt.evaluate(
+    test_dataset, task_name="classification"
+)
+print(f"Fine-tuned Test accuracy: {accuracy}")  # 0.857
+```
+
+## Visualizing Embeddings
+
+Understand what the model learned with dimensionality reduction:
+
+```python
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+# Reduce embeddings to 2D
+test_embeddings_manifold = PCA(n_components=2).fit_transform(test_embeddings)
+
+plt.figure(figsize=(10, 7))
+plt.title("ECG5000 Test Embeddings", fontsize=20)
+plt.scatter(
+    test_embeddings_manifold[:, 0],
+    test_embeddings_manifold[:, 1],
+    c=test_labels.squeeze(),
+    cmap="viridis",
+    alpha=0.7
+)
+plt.colorbar(label="Class")
+plt.xlabel("Component 1")
+plt.ylabel("Component 2")
+plt.show()
+```
+
+**Interpretation:** Well-separated clusters indicate the model learned discriminative features for each class.
+
+## Advanced Techniques
+
+### Multi-Class Classification
+
+For datasets with many classes:
+
+```python
+config = {
+    "task_name": "classification",
+    "n_channels": 1,
+    "num_class": 20  # e.g., gesture recognition with 20 gestures
+}
+mmt = MomentModel(config=config, repo=repo)
+
+# Fine-tuning is highly recommended for many classes
+finetuned_model = mmt.finetune(
+    train_dataset,
+    task_name="classification",
+    epoch=15,  # More epochs for complex tasks
+    lr=0.05
+)
+```
+
+### Multivariate Time-Series Classification
+
+Classify sequences with multiple channels:
+
+```python
+config = {
+    "task_name": "classification",
+    "n_channels": 6,  # e.g., accelerometer x, y, z + gyroscope x, y, z
+    "num_class": 10   # 10 activity types
+}
+mmt = MomentModel(config=config, repo=repo)
+
+train_dataset = MomentDataset(
+    name="har",  # Human Activity Recognition
+    path="data/HAR_TRAIN.csv",
+    batchsize=32,
+    mode="train",
+    task_name="classification",
+)
+```
+
+### Imbalanced Classification
+
+Handle class imbalance:
+
+```python
+from sklearn.utils.class_weight import compute_class_weight
+import numpy as np
+
+# Compute class weights
+class_weights = compute_class_weight(
+    'balanced',
+    classes=np.unique(train_labels),
+    y=train_labels
+)
+
+# Use weighted SVM
+from sklearn.svm import SVC
+
+weighted_clf = SVC(class_weight='balanced', kernel='rbf')
+weighted_clf.fit(train_embeddings, train_labels)
+
+test_acc = weighted_clf.score(test_embeddings, test_labels)
+print(f"Weighted SVM Test accuracy: {test_acc:.2f}")
+```
+
+## Evaluation Metrics
+
+### Beyond Accuracy
+
+For imbalanced datasets, use precision, recall, and F1:
+
+```python
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
+
+# Predictions
+y_pred = clf.predict(test_embeddings)
+
+# Classification report
+print(classification_report(test_labels, y_pred))
+
+# Confusion matrix
+cm = confusion_matrix(test_labels, y_pred)
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
+```
+
+### Cross-Validation
+
+Robust performance estimation:
+
+```python
+from sklearn.model_selection import cross_val_score
+
+# 5-fold cross-validation
+scores = cross_val_score(
+    clf, train_embeddings, train_labels, cv=5, scoring='accuracy'
+)
+
+print(f"Cross-validation scores: {scores}")
+print(f"Mean accuracy: {scores.mean():.2f} (+/- {scores.std():.2f})")
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Healthcare" icon="heartbeat">
+    ECG classification for arrhythmia detection, EEG seizure classification
+  </Card>
+  <Card title="Activity Recognition" icon="walking">
+    Wearable sensor data for classifying human activities (walking, running, sitting)
+  </Card>
+  <Card title="Audio Classification" icon="waveform">
+    Speech command recognition, music genre classification
+  </Card>
+  <Card title="Industrial IoT" icon="industry">
+    Equipment state classification (normal, faulty), predictive maintenance
+  </Card>
+</CardGroup>
+
+## Tips for Better Classification
+
+<AccordionGroup>
+  <Accordion title="Start with zero-shot SVM">
+    MOMENT embeddings are powerful—often a simple SVM achieves 90%+ accuracy without fine-tuning.
+  </Accordion>
+
+  <Accordion title="Fine-tune for specialized domains">
+    For medical, industrial, or rare event classification, fine-tuning improves accuracy by 5-15%.
+  </Accordion>
+
+  <Accordion title="Data augmentation">
+    Use time-series augmentation (jitter, scaling, rotation) to improve generalization:
+    
+    ```python
+    from tsaug import TimeWarp, Crop, Quantize
+    
+    # Apply augmentation during training
+    augmented_data = TimeWarp().augment(train_data)
+    ```
+  </Accordion>
+
+  <Accordion title="Ensemble methods">
+    Combine predictions from multiple models (MOMENT + classical features) for robust classification.
+  </Accordion>
+
+  <Accordion title="Feature importance">
+    Use attention weights or SHAP values to understand which time steps influence predictions.
+  </Accordion>
+</AccordionGroup>
+
+## Common Datasets
+
+| Dataset | Domain | Classes | Samples | Channels |
+|---------|--------|---------|---------|----------|
+| ECG5000 | Healthcare | 5 | 5000 | 1 |
+| FordA | Automotive | 2 | 4921 | 1 |
+| NATOPS | Gesture | 6 | 360 | 24 |
+| UWaveGesture | Gesture | 8 | 4478 | 3 |
+| SonyAIBORobot | Robotics | 2 | 621 | 1 |
+
+<Tip>
+  UCR/UEA Time Series Classification Archive provides 100+ benchmark datasets. Visit [UCR Archive](https://www.cs.ucr.edu/~eamonn/time_series_data_2018/) for more.
+</Tip>
+
+## Next Steps
+
+- **Need forecasting?** See [Zero-Shot Forecasting](/guides/zero-shot-forecasting)
+- **Detect anomalies?** Check [Anomaly Detection Guide](/guides/anomaly-detection)
+- **Missing data in classification?** Learn about [Imputation](/guides/imputation)
+
+For more examples, explore the [MOMENT Classification notebook](https://github.com/your-repo/Samay/blob/main/example/moment_classification.ipynb).

@@ -1,0 +1,131 @@
+---
+title: MOMENT
+description: A family of foundation models for general-purpose time series analysis
+---
+
+## Overview
+
+MOMENT is a versatile foundation model designed for multiple time series tasks including forecasting, imputation, anomaly detection, and classification.
+
+**Paper:** [MOMENT: A Family of Open Time-series Foundation Models](https://arxiv.org/abs/2402.03885)
+
+## Configuration Parameters
+
+```python
+config = {
+    "task_name": "forecasting",     # Options: "forecasting", "imputation", "detection", "classification"
+    "forecast_horizon": 192,         # Number of timesteps to forecast
+    "head_dropout": 0.1,             # Dropout rate for the task head
+    "weight_decay": 0,               # Weight decay for optimization
+    "freeze_encoder": True,          # Freeze the patch embedding layer
+    "freeze_embedder": True,         # Freeze the transformer encoder
+    "freeze_head": False,            # The linear forecasting head must be trained
+}
+```
+
+## Loading the Model
+
+```python
+from samay.model import MomentModel
+
+repo = "AutonLab/MOMENT-1-large"
+model = MomentModel(config=config, repo=repo)
+```
+
+<Info>
+MOMENT is available in different sizes: `MOMENT-1-small`, `MOMENT-1-base`, and `MOMENT-1-large`.
+</Info>
+
+## Loading Dataset
+
+```python
+from samay.dataset import MomentDataset
+
+train_dataset = MomentDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    horizon_len=192
+)
+
+val_dataset = MomentDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    horizon_len=192
+)
+```
+
+## Zero-Shot Forecasting
+
+```python
+metrics = model.evaluate(
+    val_dataset,
+    task_name="forecasting",
+    metric_only=True
+)
+```
+
+## Fine-tuning
+
+<Tabs>
+  <Tab title="Forecasting">
+```python
+finetuned_model = model.finetune(
+    train_dataset,
+    task_name="forecasting"
+)
+
+# Evaluate after fine-tuning
+metrics = model.evaluate(val_dataset, task_name="forecasting")
+```
+  </Tab>
+  <Tab title="Imputation">
+```python
+config["task_name"] = "imputation"
+model = MomentModel(config=config, repo=repo)
+
+finetuned_model = model.finetune(
+    train_dataset,
+    task_name="imputation",
+    mask_ratio=0.25  # Percentage of values to mask
+)
+```
+  </Tab>
+  <Tab title="Anomaly Detection">
+```python
+config["task_name"] = "detection"
+model = MomentModel(config=config, repo=repo)
+
+finetuned_model = model.finetune(
+    train_dataset,
+    task_name="detection"
+)
+```
+  </Tab>
+</Tabs>
+
+## Visualization
+
+```python
+model.plot(val_dataset, task_name="forecasting")
+```
+
+## Available Tasks
+
+MOMENT supports four different tasks:
+
+1. **Forecasting**: Predict future time series values
+2. **Imputation**: Fill in missing values in time series
+3. **Detection**: Detect anomalies in time series
+4. **Classification**: Classify time series into categories
+
+<Note>
+See the [example notebooks](https://github.com/AdityaLab/Samay/tree/main/example) for task-specific examples:
+- `moment_forecasting.ipynb`
+- `moment_imputation.ipynb`
+- `moment_anomaly_detection.ipynb`
+- `moment_classification.ipynb`
+</Note>

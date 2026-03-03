@@ -1,0 +1,99 @@
+---
+title: Introduction to Samay
+description: A comprehensive library for time-series foundation models with zero-shot forecasting, fine-tuning, and more
+---
+
+# Samay: Time-Series Foundation Models Library
+
+Samay is a comprehensive package for training and evaluating time-series foundation models. It provides a unified interface to work with cutting-edge pre-trained models, enabling zero-shot forecasting, fine-tuning, and various time-series analysis tasks.
+
+## Key Features
+
+- **10+ Pre-trained Models**: Access to state-of-the-art time-series foundation models
+- **Zero-Shot Forecasting**: Make predictions without any training on your specific dataset
+- **Fine-Tuning Support**: Adapt pre-trained models to your specific use cases
+- **Unified API**: Consistent interface across all models for easy switching and comparison
+- **Multiple Tasks**: Support for forecasting, classification, anomaly detection, and imputation
+- **Production Ready**: Tested on Python 3.11-3.13 with support for CPU, GPU (NVIDIA), and distributed training
+
+## Supported Models
+
+Samay includes implementations of the following state-of-the-art time-series foundation models:
+
+<CardGroup cols={2}>
+  <Card title="LPTM" icon="chart-line" href="/models/lptm">
+    Large Pre-trained Time Series Models for cross-domain analysis
+  </Card>
+  <Card title="MOMENT" icon="clock" href="/models/moment">
+    Multi-task model for forecasting, classification, and anomaly detection
+  </Card>
+  <Card title="TimesFM" icon="wave-square" href="/models/timesfm">
+    Google's Time Series Foundation Model with 200M parameters
+  </Card>
+  <Card title="Chronos" icon="calendar" href="/models/chronos">
+    Amazon's language-model-based probabilistic forecasting
+  </Card>
+  <Card title="MOIRAI" icon="arrows-split-up-and-left" href="/models/moirai">
+    Salesforce's unified time-series forecasting model
+  </Card>
+  <Card title="TinyTimeMixers" icon="waveform" href="/models/tinytimemixer">
+    Lightweight and efficient time-series mixing architecture
+  </Card>
+  <Card title="TimeMoE" icon="network-wired" href="/models/timemoe">
+    Mixture of Experts architecture for time-series forecasting
+  </Card>
+  <Card title="Chronos 2.0" icon="calendar-plus" href="/models/chronos-2">
+    Next generation of Amazon's Chronos with improved performance
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+<CardGroup cols={3}>
+  <Card title="Installation" icon="download" href="/installation">
+    Get Samay installed in your environment
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Start forecasting in 5 minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/models/base">
+    Detailed API documentation
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+- **Business Forecasting**: Sales, demand, revenue predictions
+- **IoT & Sensor Data**: Equipment monitoring and predictive maintenance
+- **Financial Analysis**: Stock prices, market trends
+- **Energy & Utilities**: Load forecasting, consumption patterns
+- **Healthcare**: Patient monitoring, epidemic forecasting
+- **Weather & Climate**: Temperature, precipitation predictions
+
+## System Requirements
+
+- **Python**: 3.11, 3.12, or 3.13
+- **Operating Systems**: Linux, MacOS (Windows support planned)
+- **Hardware**: CPU, NVIDIA GPUs (Apple Silicon GPU support planned)
+- **Dependencies**: PyTorch, transformers, gluonts, and more
+
+## Research & Citations
+
+Samay is built on cutting-edge research in time-series foundation models. If you use this library in your research, please cite:
+
+```bibtex
+@inproceedings{kamarthi2024large,
+  title={Large Pre-trained time series models for cross-domain Time series analysis tasks},
+  author={Harshavardhan Kamarthi and B. Aditya Prakash},
+  booktitle={The Thirty-eighth Annual Conference on Neural Information Processing Systems},
+  year={2024},
+  url={https://openreview.net/forum?id=vMMzjCr5Zj}
+}
+```
+
+## Community & Support
+
+For questions, feedback, or contributions:
+- **GitHub**: [AdityaLab/Samay](https://github.com/AdityaLab/Samay)
+- **Email**: hkamarthi3@gatech.edu, badityap@cc.gatech.edu
+- **Examples**: Check out [example notebooks](https://github.com/AdityaLab/Samay/tree/main/example)

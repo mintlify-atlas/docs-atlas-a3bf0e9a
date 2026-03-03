@@ -1,0 +1,96 @@
+---
+title: Metrics Overview
+description: Overview of all available metrics in Samay for time series evaluation
+---
+
+Samay provides a comprehensive collection of metrics for evaluating time series models across different forecasting scenarios.
+
+## Available Metrics
+
+The metrics module (`samay.metric`) provides three main categories of evaluation metrics:
+
+### Forecasting Metrics
+
+Point-based metrics for evaluating deterministic forecasts:
+
+- **MSE** - Mean Squared Error
+- **MAE** - Mean Absolute Error
+- **RMSE** - Root Mean Squared Error
+- **MAPE** - Mean Absolute Percentage Error
+- **SMAPE** - Symmetric Mean Absolute Percentage Error
+- **NRMSE** - Normalized Root Mean Squared Error
+- **ND** - Normalized Deviation
+- **MASE** - Mean Absolute Scaled Error
+
+See [Forecasting Metrics](/api/metrics/forecasting) for detailed documentation.
+
+### Probabilistic Metrics
+
+Metrics for evaluating probabilistic forecasts with quantile predictions:
+
+- **CRPS** - Continuous Ranked Probability Score
+- **MWSQ** - Mean Weighted Squared Quantile Loss
+- **MSIS** - Mean Scaled Interval Score
+
+See [Probabilistic Metrics](/api/metrics/probabilistic) for detailed documentation.
+
+## When to Use Each Metric Type
+
+### Forecasting Metrics
+
+Use these when evaluating point forecasts (single predicted value per timestep):
+
+- **MSE/RMSE** - When you want to heavily penalize large errors
+- **MAE** - When you want equal weight for all errors
+- **MAPE/SMAPE** - When you need scale-independent percentage-based metrics
+- **NRMSE** - When you need normalized errors for comparison across datasets
+- **ND** - For normalized deviation metrics
+- **MASE** - When you want to compare forecast accuracy against a baseline naive forecast
+
+### Probabilistic Metrics
+
+Use these when evaluating probabilistic forecasts (multiple quantile predictions):
+
+- **CRPS** - Comprehensive evaluation of full predictive distribution
+- **MWSQ** - Squared quantile loss for probabilistic forecasts
+- **MSIS** - Interval-based scoring with penalties for misses
+
+## Usage Example
+
+```python
+import numpy as np
+from samay.metric import MSE, MAE, RMSE, MAPE, CRPS
+
+# Point forecast evaluation
+y_true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+y_pred = np.array([1.1, 2.2, 2.9, 4.1, 5.2])
+
+mse = MSE(y_true, y_pred)
+mae = MAE(y_true, y_pred)
+rmse = RMSE(y_true, y_pred)
+mape = MAPE(y_true, y_pred)
+
+print(f"MSE: {mse:.4f}")
+print(f"MAE: {mae:.4f}")
+print(f"RMSE: {rmse:.4f}")
+print(f"MAPE: {mape:.4f}")
+
+# Probabilistic forecast evaluation
+y_true = np.random.randn(100, 2, 24)  # (num_seq, n_var, seq_len)
+y_pred = np.random.randn(9, 100, 2, 24)  # (q, num_seq, n_var, seq_len)
+quantiles = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+
+crps = CRPS(y_true, y_pred, quantiles)
+print(f"CRPS: {crps:.4f}")
+```
+
+## Import
+
+All metrics can be imported from the `samay.metric` module:
+
+```python
+from samay.metric import (
+    MSE, MAE, RMSE, MAPE, SMAPE, NRMSE, ND, MASE,  # Forecasting metrics
+    CRPS, MWSQ, MSIS  # Probabilistic metrics
+)
+```

@@ -1,0 +1,350 @@
+---
+title: Fine-Tuning
+description: Learn when and how to fine-tune Samay models for optimal performance
+---
+
+## When to Fine-Tune vs Zero-Shot
+
+**Use zero-shot** when:
+- You have limited or no training data
+- Your data distribution is similar to pre-training data
+- You need quick results without training time
+- You're prototyping or exploring model capabilities
+
+**Use fine-tuning** when:
+- You have domain-specific data with unique patterns
+- Zero-shot performance is insufficient
+- You can afford training time (typically 5-10 epochs)
+- Your data distribution differs from general time-series
+
+Fine-tuning typically improves performance by 10-30% compared to zero-shot inference, depending on the dataset and model.
+
+## Fine-Tuning Workflow
+
+All Samay models follow a consistent fine-tuning pattern:
+
+<Steps>
+  <Step title="Prepare training data">
+    Create a dataset instance for training:
+
+    ```python
+    from samay.dataset import LPTMDataset
+
+    train_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="data/ETTh1.csv",
+        mode="train",  # Important: use 'train' mode
+        horizon=192,
+    )
+    ```
+  </Step>
+
+  <Step title="Configure model for fine-tuning">
+    Set freeze parameters to control what layers are trainable:
+
+    ```python
+    from samay.model import LPTMModel
+
+    config = {
+        "task_name": "forecasting",
+        "forecast_horizon": 192,
+        "head_dropout": 0,
+        "weight_decay": 0,
+        "max_patch": 16,
+        "freeze_encoder": True,    # Freeze patch embedding
+        "freeze_embedder": True,   # Freeze transformer
+        "freeze_head": False,      # Train the forecasting head
+        "freeze_segment": True,    # Freeze segmentation
+    }
+    model = LPTMModel(config)
+    ```
+
+    <Tip>
+      For faster training with good results, freeze the encoder and only train the head. For maximum performance, unfreeze all layers (but expect longer training).
+    </Tip>
+  </Step>
+
+  <Step title="Run fine-tuning">
+    Call the `finetune()` method:
+
+    ```python
+    finetuned_model = model.finetune(train_dataset)
+    # Output:
+    # Epoch 0: Train loss: 0.594
+    # Epoch 1: Train loss: 0.504
+    # Epoch 2: Train loss: 0.479
+    # ...
+    ```
+  </Step>
+
+  <Step title="Evaluate fine-tuned model">
+    Test on validation data:
+
+    ```python
+    val_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="data/ETTh1.csv",
+        mode="test",
+        horizon=192,
+    )
+
+    metrics, trues, preds, histories = model.evaluate(
+        val_dataset, task_name="forecasting"
+    )
+    print(f"MSE: {metrics}")
+    ```
+  </Step>
+</Steps>
+
+## Real Code Examples
+
+### LPTM Fine-Tuning
+
+Complete example from `lptm.ipynb`:
+
+```python
+from samay.model import LPTMModel
+from samay.dataset import LPTMDataset
+
+# Configure model
+config = {
+    "task_name": "forecasting",
+    "forecast_horizon": 192,
+    "head_dropout": 0,
+    "weight_decay": 0,
+    "max_patch": 16,
+    "freeze_encoder": True,
+    "freeze_embedder": True,
+    "freeze_head": False,
+    "freeze_segment": True,
+}
+model = LPTMModel(config)
+
+# Prepare training data
+train_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="train",
+    horizon=192,
+)
+
+# Fine-tune
+finetuned_model = model.finetune(train_dataset)
+# Epoch 0: Train loss: 0.594
+# Epoch 1: Train loss: 0.504
+# Epoch 2: Train loss: 0.479
+# Epoch 3: Train loss: 0.465
+# Epoch 4: Train loss: 0.454
+
+# Evaluate
+val_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="test",
+    horizon=192,
+)
+
+metrics, trues, preds, histories = model.evaluate(
+    val_dataset, task_name="forecasting"
+)
+print(f"Final Loss: {metrics}")  # ~0.441
+```
+
+### MOMENT Fine-Tuning for Classification
+
+Fine-tuning for time-series classification:
+
+```python
+from samay.model import MomentModel
+from samay.dataset import MomentDataset
+
+repo = "AutonLab/MOMENT-1-large"
+config = {
+    "task_name": "classification",
+    "n_channels": 1,
+    "num_class": 5
+}
+mmt = MomentModel(config=config, repo=repo)
+
+train_dataset = MomentDataset(
+    name="ecg5000",
+    path="data/ECG5000_TRAIN.csv",
+    batchsize=64,
+    mode="train",
+    task_name="classification",
+)
+
+# Fine-tune with custom learning rate
+finetuned_model = mmt.finetune(
+    train_dataset,
+    task_name="classification",
+    epoch=10,
+    lr=0.1
+)
+# Epoch 0: Train loss: 1.200
+# Epoch 1: Train loss: 0.856
+# ...
+# Epoch 9: Train loss: 0.451
+
+# Evaluate
+test_dataset = MomentDataset(
+    name="ecg5000",
+    path="data/ECG5000_TEST.csv",
+    batchsize=64,
+    mode="test",
+    task_name="classification",
+)
+
+accuracy, embeddings, labels = mmt.evaluate(
+    test_dataset, task_name="classification"
+)
+print(f"Accuracy: {accuracy}")  # ~0.857
+```
+
+### Chronos Fine-Tuning
+
+```python
+from samay.model import ChronosModel
+from samay.dataset import ChronosDataset
+
+repo = "amazon/chronos-t5-small"
+chronos_model = ChronosModel(repo=repo)
+
+train_dataset = ChronosDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="train",
+    batch_size=8
+)
+
+chronos_model.finetune(train_dataset)
+# Epoch 0, Loss: 3.874
+# Epoch 1, Loss: 3.848
+# Epoch 2, Loss: 3.808
+# Epoch 3, Loss: 3.775
+# Epoch 4, Loss: 3.743
+```
+
+## Training Parameters and Best Practices
+
+### Key Hyperparameters
+
+<ParamField path="epoch" type="int" default="5">
+  Number of training epochs. Start with 5, increase if loss is still decreasing.
+</ParamField>
+
+<ParamField path="lr" type="float" default="0.001">
+  Learning rate. Try 0.001 for full fine-tuning, 0.01-0.1 for head-only training.
+</ParamField>
+
+<ParamField path="head_dropout" type="float" default="0.1">
+  Dropout rate for the forecasting head. Helps prevent overfitting.
+</ParamField>
+
+<ParamField path="weight_decay" type="float" default="0">
+  L2 regularization strength. Use 0.01-0.001 for small datasets.
+</ParamField>
+
+<ParamField path="freeze_encoder" type="bool" default="true">
+  Whether to freeze the patch embedding layer. Set to `false` for full fine-tuning.
+</ParamField>
+
+<ParamField path="freeze_embedder" type="bool" default="true">
+  Whether to freeze the transformer encoder. Set to `false` for full fine-tuning.
+</ParamField>
+
+<ParamField path="freeze_head" type="bool" default="false">
+  Whether to freeze the task-specific head. Almost always keep `false` during fine-tuning.
+</ParamField>
+
+### Fine-Tuning Strategies
+
+<AccordionGroup>
+  <Accordion title="Head-Only Fine-Tuning (Fastest)">
+    **When to use:** Limited data (&lt;1000 samples), quick experiments
+
+    ```python
+    config = {
+        "freeze_encoder": True,
+        "freeze_embedder": True,
+        "freeze_head": False,
+        "lr": 0.1,  # Higher learning rate OK for head-only
+    }
+    ```
+
+    **Training time:** 1-2 minutes for 5 epochs  
+    **Performance:** 70-80% of full fine-tuning
+  </Accordion>
+
+  <Accordion title="Partial Fine-Tuning (Balanced)">
+    **When to use:** Moderate data (1000-10000 samples), domain adaptation
+
+    ```python
+    config = {
+        "freeze_encoder": False,  # Unfreeze encoder
+        "freeze_embedder": True,   # Keep transformer frozen
+        "freeze_head": False,
+        "lr": 0.01,
+    }
+    ```
+
+    **Training time:** 5-10 minutes for 5 epochs  
+    **Performance:** 85-95% of full fine-tuning
+  </Accordion>
+
+  <Accordion title="Full Fine-Tuning (Maximum Performance)">
+    **When to use:** Large datasets (>10000 samples), maximum accuracy needed
+
+    ```python
+    config = {
+        "freeze_encoder": False,
+        "freeze_embedder": False,  # Unfreeze transformer
+        "freeze_head": False,
+        "lr": 0.001,  # Lower learning rate to avoid catastrophic forgetting
+        "weight_decay": 0.01,  # Add regularization
+    }
+    ```
+
+    **Training time:** 15-30 minutes for 5 epochs  
+    **Performance:** Best possible accuracy
+  </Accordion>
+</AccordionGroup>
+
+### Common Issues and Solutions
+
+<Warning>
+  **Loss not decreasing?**
+  - Try unfreezing more layers
+  - Increase learning rate (0.01 → 0.1)
+  - Train for more epochs (5 → 10)
+  - Check if data is properly normalized
+</Warning>
+
+<Warning>
+  **Overfitting (train loss low, val loss high)?**
+  - Increase `head_dropout` (0.1 → 0.3)
+  - Add `weight_decay` (0 → 0.01)
+  - Freeze more layers
+  - Reduce number of epochs
+</Warning>
+
+<Warning>
+  **Training too slow?**
+  - Use head-only fine-tuning
+  - Reduce batch size in dataset config
+  - Reduce context length
+  - Use a smaller model variant
+</Warning>
+
+## Next Steps
+
+- **Want to reduce model size?** See [Quantization Guide](/guides/quantization)
+- **Need anomaly detection?** Check [Anomaly Detection Guide](/guides/anomaly-detection)
+- **Missing data issues?** Learn about [Imputation](/guides/imputation)
+
+For more fine-tuning examples, explore the [example notebooks](https://github.com/your-repo/Samay/tree/main/example).

@@ -1,0 +1,113 @@
+---
+title: 'BaseDataset'
+description: 'Base dataset abstraction used by model-specific dataset classes'
+icon: 'database'
+---
+
+## Overview
+
+Base dataset abstraction used by model-specific dataset classes. Subclasses should implement `preprocess()` and `get_data_loader()` methods.
+
+## Class signature
+
+```python
+class BaseDataset:
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = None,
+        path: str = None,
+        batchsize: int = 8,
+        mode: str = "train",
+        **kwargs,
+    )
+```
+
+## Parameters
+
+<ParamField path="name" type="str" default="None">
+  Name of the dataset. If provided, a corresponding `get_{name}_dataset` function may be used to populate data.
+</ParamField>
+
+<ParamField path="datetime_col" type="str" default="None">
+  Name of the datetime column in the source CSV.
+</ParamField>
+
+<ParamField path="path" type="str" default="None">
+  Path to the dataset file. If omitted, the loader function for `name` is called.
+</ParamField>
+
+<ParamField path="batchsize" type="int" default="8">
+  Batch size to be used by dataloaders.
+</ParamField>
+
+<ParamField path="mode" type="str" default="train">
+  Mode of dataset usage, e.g. `'train'` or `'test'`.
+</ParamField>
+
+<ParamField path="kwargs" type="dict">
+  Extra backend-specific options.
+</ParamField>
+
+## Methods
+
+### `__len__()`
+
+Return the number of items in the dataset.
+
+```python
+def __len__(self) -> int
+```
+
+**Returns:** `int` - Number of samples in the dataset (len(self.data)).
+
+### `preprocess()`
+
+Preprocess method to be implemented by subclasses.
+
+```python
+def preprocess(self, **kwargs)
+```
+
+<Warning>
+  This method raises `NotImplementedError` and must be overridden in subclasses.
+</Warning>
+
+### `get_data_loader()`
+
+Get data loader method to be implemented by subclasses.
+
+```python
+def get_data_loader()
+```
+
+<Warning>
+  This method raises `NotImplementedError` and must be overridden in subclasses.
+</Warning>
+
+### `save()`
+
+Save the dataset to disk.
+
+```python
+def save(self, path)
+```
+
+**Parameters:**
+- `path` (str): Path where the dataset will be saved.
+
+## Example usage
+
+```python
+from samay.dataset import BaseDataset
+
+# BaseDataset is meant to be subclassed, not used directly
+class CustomDataset(BaseDataset):
+    def preprocess(self, **kwargs):
+        # Implement preprocessing logic
+        pass
+    
+    def get_data_loader(self):
+        # Implement data loader creation
+        pass
+```

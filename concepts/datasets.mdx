@@ -1,0 +1,440 @@
+---
+title: Dataset Concepts
+description: Understanding dataset structure, preprocessing, and loading in Samay
+---
+
+## BaseDataset Interface
+
+All datasets in Samay inherit from the `BaseDataset` class (`src/samay/dataset.py:54`), which provides a consistent interface for data loading and preprocessing.
+
+```python
+class BaseDataset:
+    def __init__(
+        self,
+        name: str = None,
+        datetime_col: str = None,
+        path: str = None,
+        batchsize: int = 8,
+        mode: str = "train",
+        **kwargs,
+    ):
+        """Initialize common dataset fields."""
+        
+    def preprocess(self, **kwargs):
+        """Model-specific preprocessing logic."""
+        raise NotImplementedError
+        
+    def get_data_loader(self):
+        """Return PyTorch DataLoader."""
+        raise NotImplementedError
+        
+    def __len__(self) -> int:
+        """Return the number of items in the dataset."""
+        return len(self.data)
+        
+    def __getitem__(self, idx):
+        """Get item by index, applying preprocessing."""
+        dt = self.data[idx]
+        dt = self.preprocess(dt)
+        return dt
+```
+
+## Common Parameters
+
+All dataset classes share these core parameters:
+
+### name
+
+**Type:** `str` (optional)  
+**Description:** Dataset identifier. When provided, triggers automatic download from HuggingFace datasets.
+
+```python
+# Auto-download from HuggingFace
+dataset = TimesfmDataset(name="ett", mode="train")
+# Downloads and caches data/ETTh/ETTh.csv
+```
+
+### datetime_col
+
+**Type:** `str`  
+**Default:** Varies by model ("ds" for TimesFM, "date" for others)  
+**Description:** Name of the datetime column in your CSV file. This column is typically dropped during preprocessing.
+
+```python
+dataset = ChronosDataset(
+    path="electricity.csv",
+    datetime_col="timestamp",  # Column name in CSV
+    mode="train"
+)
+```
+
+### path
+
+**Type:** `str` (optional)  
+**Description:** Path to your CSV file. If omitted, `name` is used to download data.
+
+```python
+# Use local file
+dataset = TimesfmDataset(
+    path="/data/my_timeseries.csv",
+    datetime_col="date"
+)
+```
+
+### batchsize
+
+**Type:** `int`  
+**Default:** Varies by model (4-128)  
+**Description:** Batch size for DataLoader.
+
+```python
+dataset = ChronosDataset(
+    path="data.csv",
+    batch_size=32  # Note: some use 'batchsize', others 'batch_size'
+)
+```
+
+### mode
+
+**Type:** `str`  
+**Options:** `"train"`, `"test"`, `"val"`  
+**Description:** Determines which data split to use based on boundaries.
+
+```python
+train_data = ChronosDataset(path="data.csv", mode="train")
+test_data = ChronosDataset(path="data.csv", mode="test")
+```
+
+### boundaries
+
+**Type:** `list[int]` or `tuple[int]`  
+**Default:** `[0, 0, 0]` (auto-computed as 50%/20%/30% split)  
+**Description:** Indices defining train/val/test splits: `[train_end, val_end, test_end]`
+
+```python
+# Custom split: first 8000 for train, 8000-10000 for val, 10000+ for test
+dataset = ChronosDataset(
+    path="data.csv",
+    boundaries=[8000, 10000, 12000],
+    mode="train"  # Uses rows 0-8000
+)
+
+# Use all data for training
+dataset = ChronosDataset(
+    path="data.csv",
+    boundaries=[-1, -1, -1],
+    mode="train"
+)
+```
+
+## Dataset Structure
+
+### Data Format
+
+Datasets expect CSV files with:
+- One datetime column (specified by `datetime_col`)
+- One or more value columns (time series channels)
+
+**Example CSV:**
+```csv
+date,series1,series2,series3
+2020-01-01,10.5,20.3,15.8
+2020-01-02,11.2,19.8,16.1
+2020-01-03,10.8,21.1,15.9
+...
+```
+
+### Windowing and Chunking
+
+Datasets create sliding windows from the time series:
+
+```python
+# From src/samay/dataset.py:422-424
+self.one_chunk_num = (
+    self.length_timeseries - self.context_len - self.horizon_len
+) // self.stride + 1
+```
+
+**Parameters:**
+- `context_len` / `seq_len` - Historical context window size
+- `horizon_len` / `forecast_horizon` - Forecast horizon size  
+- `stride` - Step size between windows (default 10)
+
+**Example:**
+```python
+dataset = ChronosDataset(
+    path="data.csv",
+    context_len=512,  # Look back 512 timesteps
+    horizon_len=96,    # Forecast 96 timesteps ahead
+    stride=10          # Create window every 10 timesteps
+)
+
+# With 10,000 total timesteps:
+# Total windows = (10000 - 512 - 96) // 10 + 1 = 940 windows
+```
+
+### Multi-channel Handling
+
+For datasets with many channels, data is split into chunks:
+
+```python
+# From src/samay/dataset.py:443-444
+self.n_channels = self.df.shape[1] - 1  # Exclude datetime column
+self.num_chunks = (self.n_channels + self.max_col_num - 1) // self.max_col_num
+```
+
+**Default max_col_num:**
+- ChronosDataset: 16 channels per chunk
+- ChronosBoltDataset: 64 channels per chunk  
+- MomentDataset: 64 channels per chunk
+- TimesfmDataset: No chunking (processes all channels together)
+
+## Data Preprocessing
+
+### Padding
+
+Short time series are automatically padded:
+
+```python
+# From src/samay/dataset.py:464-469
+def pad_sequence(self):
+    self.pad_len = self.required_len - self.length_timeseries
+    if self.pad:
+        # Pad data with zeros from the left
+        self.data = np.pad(self.data, ((self.pad_len, 0), (0, 0)))
+```
+
+Padded positions are masked during training:
+
+```python
+input_mask = np.ones(self.context_len)
+input_mask[:self.pad_len] = 0  # Mask padded positions
+```
+
+### Normalization
+
+Some datasets support normalization:
+
+**TimesfmDataset:**
+```python
+dataset = TimesfmDataset(
+    path="data.csv",
+    normalize=True  # Applies StandardScaler
+)
+
+# Denormalize predictions
+if dataset.normalize:
+    preds = dataset._denormalize_data(preds)
+```
+
+**MomentDataset / LPTMDataset:**
+```python
+# From src/samay/dataset.py:816-817
+self.scaler = StandardScaler()
+self.scaler.fit(self.df[slice(0, int(len(self.df) * 0.5))].values)
+self.df = self.scaler.transform(self.df.values)
+```
+
+Automatically normalizes using training data statistics.
+
+### Tokenization (Chronos)
+
+Chronos datasets apply tokenization for transformer models:
+
+```python
+# From src/samay/dataset.py:513-524
+self.tokenizer = MeanScaleUniformBins(
+    **self.config.tokenizer_kwargs, 
+    config=self.config
+)
+
+input_ids, attention_mask, scale = self.tokenizer.context_input_transform(
+    torch.tensor(input_seq)
+)
+
+labels, labels_mask = self.tokenizer.label_input_transform(
+    torch.tensor(forecast_seq), scale
+)
+labels[labels_mask == 0] = -100  # Ignore index for loss
+```
+
+## DataLoader Integration
+
+All datasets provide a `get_data_loader()` method:
+
+```python
+# From src/samay/dataset.py:544-551
+def get_data_loader(self):
+    if self.mode == "train":
+        return DataLoader(self, shuffle=True, batch_size=self.batchsize)
+    else:
+        return DataLoader(self, shuffle=False, batch_size=self.batchsize)
+```
+
+**Usage:**
+```python
+train_data = ChronosDataset(path="data.csv", mode="train", batch_size=16)
+loader = train_data.get_data_loader()
+
+for batch in loader:
+    # batch contains model-specific format
+    # e.g., {"input_ids": ..., "attention_mask": ..., "labels": ...}
+    pass
+```
+
+## Model-Specific Datasets
+
+<AccordionGroup>
+  <Accordion title="ChronosDataset - Tokenized transformer input">
+    **Key Parameters:**
+    - `context_len` (int, default 512) - Context window size
+    - `horizon_len` (int, default 64) - Forecast horizon
+    - `stride` (int, default 10) - Window stride
+    - `config` (ChronosConfig) - Model configuration
+    - `tokenizer_class` (str) - Tokenizer type
+    
+    **Returns:**
+    ```python
+    {
+        "input_seq": np.ndarray,      # (n_channels, context_len)
+        "forecast_seq": np.ndarray,    # (n_channels, horizon_len)  
+        "input_ids": torch.Tensor,     # Tokenized input
+        "attention_mask": torch.Tensor,
+        "labels": torch.Tensor         # Tokenized targets
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="TimesfmDataset - Patch-based input">
+    **Key Parameters:**
+    - `context_len` (int, default 128) - Historical window
+    - `horizon_len` (int, default 32) - Forecast window
+    - `freq` (str, default "h") - Data frequency
+    - `normalize` (bool, default False) - Apply normalization
+    - `stride` (int, default 10) - Window stride
+    
+    **Returns:**
+    ```python
+    {
+        "input_ts": np.ndarray,    # (batch*n_channels, context_len)
+        "actual_ts": np.ndarray    # (batch*n_channels, horizon_len)
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="MomentDataset - Multi-task dataset">
+    **Key Parameters:**
+    - `task_name` (str) - "forecasting", "imputation", "detection", "classification"
+    - `seq_len` (int, default 512) - Sequence length
+    - `horizon_len` (int, default 0) - Forecast horizon
+    - `label_col` (str) - Label column for classification
+    
+    **Returns (forecasting):**
+    ```python
+    (input_seq, input_mask, forecast_seq)
+    # input_seq: (n_channels, seq_len)
+    # input_mask: (seq_len,) - binary mask
+    # forecast_seq: (n_channels, horizon_len)
+    ```
+    
+    **Returns (classification):**
+    ```python
+    (input_seq, input_mask, labels)
+    # input_seq: (n_channels, seq_len)
+    # labels: int - class label
+    ```
+  </Accordion>
+  
+  <Accordion title="ChronosBoltDataset - Simplified Chronos variant">
+    **Key Parameters:**
+    - `context_len` (int, default 512)
+    - `horizon_len` (int, default 64)
+    - `stride` (int, default 10)
+    - `max_col_num` (int, default 64) - Channels per chunk
+    
+    **Returns:**
+    ```python
+    (input_seq, forecast_seq)
+    # input_seq: (n_channels, context_len)
+    # forecast_seq: (n_channels, horizon_len)
+    ```
+    
+    No tokenization - returns raw sequences.
+  </Accordion>
+</AccordionGroup>
+
+## Dataset Examples
+
+### Basic Usage
+
+```python
+from samay import ChronosDataset, ChronosModel
+
+# Create train and test datasets
+train_data = ChronosDataset(
+    path="electricity.csv",
+    datetime_col="date",
+    mode="train",
+    boundaries=[0, 8000, 10000],
+    context_len=512,
+    horizon_len=96,
+    stride=10,
+    batch_size=16
+)
+
+test_data = ChronosDataset(
+    path="electricity.csv",
+    datetime_col="date",
+    mode="test",
+    boundaries=[0, 8000, 10000],
+    context_len=512,
+    horizon_len=96,
+    stride=96,  # Non-overlapping windows for test
+    batch_size=1
+)
+
+# Use with model
+model = ChronosModel(repo="amazon/chronos-t5-small")
+model.finetune(train_data)
+metrics = model.evaluate(test_data, horizon_len=96, quantile_levels=[0.1, 0.5, 0.9])
+```
+
+### Multi-task Dataset (MOMENT)
+
+```python
+from samay import MomentDataset, MomentModel
+
+# Forecasting
+forecast_data = MomentDataset(
+    path="data.csv",
+    task_name="forecasting",
+    horizon_len=96,
+    mode="train"
+)
+
+# Classification
+classification_data = MomentDataset(
+    path="ecg_data.csv",
+    task_name="classification",
+    label_col="label",
+    mode="train"
+)
+
+# Anomaly detection
+detection_data = MomentDataset(
+    path="sensor_data.csv",
+    task_name="detection",
+    mode="train"
+)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Models" icon="microchip" href="/concepts/models">
+    Learn how to use datasets with models
+  </Card>
+  <Card title="Evaluation" icon="chart-line" href="/concepts/evaluation">
+    Understand metrics and evaluation
+  </Card>
+</CardGroup>

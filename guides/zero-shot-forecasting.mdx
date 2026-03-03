@@ -1,0 +1,208 @@
+---
+title: Zero-Shot Forecasting
+description: Learn how to perform zero-shot time-series forecasting with any Samay model
+---
+
+## What is Zero-Shot Forecasting?
+
+Zero-shot forecasting allows you to make predictions on time-series data without fine-tuning the model on your specific dataset. Samay's pre-trained foundation models (LPTM, MOMENT, Chronos, Moirai, etc.) can generate forecasts immediately using their learned representations from large-scale pre-training.
+
+This approach is ideal when:
+- You have limited training data
+- You need quick predictions without training time
+- You want to test a model's capabilities before committing to fine-tuning
+- Your data shares similar patterns with the pre-training corpus
+
+## Step-by-Step Workflow
+
+Here's how to perform zero-shot forecasting with any Samay model:
+
+<Steps>
+  <Step title="Import the model">
+    First, import and initialize your chosen model:
+
+    ```python
+    from samay.model import LPTMModel  # or MomentModel, ChronosModel, etc.
+
+    config = {
+        "task_name": "forecasting2",
+        "forecast_horizon": 192,
+        "seq_len": 1112,
+        "head_dropout": 0,
+        "weight_decay": 0,
+        "max_patch": 16,
+        "freeze_encoder": False,
+        "freeze_embedder": True,
+        "freeze_head": True,
+        "freeze_segment": True,
+    }
+    model = LPTMModel(config)
+    ```
+  </Step>
+
+  <Step title="Prepare your dataset">
+    Create a dataset instance for your time-series data:
+
+    ```python
+    from samay.dataset import LPTMDataset
+
+    val_dataset = LPTMDataset(
+        name="ett",
+        datetime_col="date",
+        path="../data/data/ETTh1.csv",
+        horizon=192,
+        task_name="forecasting2",
+        seq_len=1112,
+    )
+    ```
+  </Step>
+
+  <Step title="Run zero-shot evaluation">
+    Evaluate the model directly without training:
+
+    ```python
+    avg_loss, trues, preds, histories = model.evaluate(
+        val_dataset, task_name="forecasting2"
+    )
+    print(f"Average Loss: {avg_loss}")
+    ```
+  </Step>
+
+  <Step title="Visualize results">
+    Plot the predictions against ground truth:
+
+    ```python
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Convert to numpy arrays
+    trues = np.array(trues)
+    preds = np.array(preds)
+    histories = np.array(histories)
+
+    # Pick a random sample
+    channel_idx = np.random.randint(0, 7)
+    time_index = np.random.randint(0, trues.shape[0])
+
+    history = histories[time_index, channel_idx, :]
+    true = trues[time_index, channel_idx, :]
+    pred = preds[time_index, channel_idx, :]
+
+    plt.figure(figsize=(12, 4))
+    plt.plot(range(len(history)), history, label="History", c="darkblue")
+    
+    offset = len(history)
+    plt.plot(
+        range(offset, offset + len(true)),
+        true,
+        label="Ground Truth",
+        color="darkblue",
+        linestyle="--",
+        alpha=0.5,
+    )
+    plt.plot(
+        range(offset, offset + len(pred)),
+        pred,
+        label="Forecast",
+        color="red",
+        linestyle="--",
+    )
+    plt.legend()
+    plt.show()
+    ```
+  </Step>
+</Steps>
+
+## Real Examples
+
+### LPTM Zero-Shot Forecasting
+
+From `lptm_zero.ipynb`, LPTM achieves strong zero-shot performance on the ETTh1 dataset:
+
+```python
+from samay.model import LPTMModel
+from samay.dataset import LPTMDataset
+
+# Initialize model
+config = {
+    "task_name": "forecasting2",
+    "forecast_horizon": 192,
+    "seq_len": 1112,
+}
+model = LPTMModel(config)
+
+# Load dataset
+val_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    horizon=192,
+    task_name="forecasting2",
+    seq_len=1112,
+)
+
+# Zero-shot evaluation
+avg_loss, trues, preds, histories = model.evaluate(
+    val_dataset, task_name="forecasting2"
+)
+# Results: avg_loss ≈ 0.376
+```
+
+### Chronos Zero-Shot Forecasting
+
+Chronos provides probabilistic forecasts with quantile predictions:
+
+```python
+from samay.model import ChronosModel
+from samay.dataset import ChronosDataset
+
+repo = "amazon/chronos-t5-small"
+chronos_model = ChronosModel(repo=repo)
+
+val_dataset = ChronosDataset(
+    name="ett",
+    datetime_col="date",
+    path="data/ETTh1.csv",
+    mode="test",
+    batch_size=8
+)
+
+# Visualize zero-shot forecasting with uncertainty
+chronos_model.plot(
+    val_dataset,
+    horizon_len=64,
+    quantile_levels=[0.1, 0.5, 0.9]
+)
+```
+
+## Tips for Best Results
+
+<AccordionGroup>
+  <Accordion title="Choose the right context length">
+    Use longer context windows for capturing long-term patterns. Most models support 512-1024 timesteps.
+  </Accordion>
+
+  <Accordion title="Normalize your data">
+    Ensure your data is properly scaled. Most Samay datasets handle normalization automatically.
+  </Accordion>
+
+  <Accordion title="Match the frequency">
+    If using models like Moirai, specify the frequency parameter (`freq='h'` for hourly, `freq='d'` for daily, etc.).
+  </Accordion>
+
+  <Accordion title="Try multiple models">
+    Different architectures excel at different patterns. Test LPTM, MOMENT, Chronos, and Moirai to find the best fit.
+  </Accordion>
+
+  <Accordion title="Consider ensemble predictions">
+    For critical applications, combine predictions from multiple zero-shot models.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- **Poor zero-shot results?** Try [fine-tuning](/guides/fine-tuning) on your specific dataset
+- **Need uncertainty estimates?** Use probabilistic models like Chronos or Moirai
+- **Multivariate forecasting?** LPTM and MOMENT support multiple time-series channels
+
+Ready to improve performance? Check out the [Fine-Tuning Guide](/guides/fine-tuning).

@@ -1,0 +1,111 @@
+---
+title: LPTM
+description: Large Pre-trained Time-series Model for cross-domain time series forecasting
+---
+
+## Overview
+
+LPTM (Large Pre-trained Time-series Model) is a foundation model for time series analysis that supports multiple tasks including forecasting, imputation, detection, and classification.
+
+**Paper:** [Large Pre-trained time series models for cross-domain Time series analysis tasks](https://arxiv.org/abs/2311.11413)
+
+## Configuration Parameters
+
+```python
+config = {
+    "task_name": "forecasting",  # Options: "forecasting", "imputation", "detection", "classification"
+    "forecast_horizon": 192,      # Number of timesteps to forecast
+    "head_dropout": 0,            # Dropout rate for the forecasting head
+    "weight_decay": 0,            # Weight decay for optimization
+    "max_patch": 16,              # Maximum patch size
+    "freeze_encoder": True,       # Freeze the patch embedding layer
+    "freeze_embedder": True,      # Freeze the transformer encoder
+    "freeze_head": False,         # The linear forecasting head must be trained
+    "freeze_segment": True,       # Freeze the segmentation module
+}
+```
+
+## Loading the Model
+
+```python
+from samay.model import LPTMModel
+
+model = LPTMModel(config)
+```
+
+The model is automatically loaded from the `kage08/lptm-large2` repository.
+
+## Loading Dataset
+
+```python
+from samay.dataset import LPTMDataset
+
+train_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="train",
+    horizon=192,
+)
+
+val_dataset = LPTMDataset(
+    name="ett",
+    datetime_col="date",
+    path="./data/ETTh1.csv",
+    mode="test",
+    horizon=192,
+)
+```
+
+## Zero-Shot Forecasting
+
+LPTM supports zero-shot forecasting out of the box:
+
+```python
+metrics, trues, preds, histories = model.evaluate(
+    val_dataset,
+    task_name="forecasting"
+)
+```
+
+## Fine-tuning
+
+<Tabs>
+  <Tab title="Basic Fine-tuning">
+```python
+finetuned_model = model.finetune(
+    train_dataset,
+    task_name="forecasting"
+)
+```
+  </Tab>
+  <Tab title="With Custom Parameters">
+```python
+finetuned_model = model.finetune(
+    train_dataset,
+    task_name="forecasting",
+    lr=1e-4,        # Learning rate
+    epoch=10,       # Number of epochs
+    norm=5.0,       # Gradient clipping norm
+)
+```
+  </Tab>
+</Tabs>
+
+## Evaluation Metrics
+
+LPTM supports comprehensive evaluation metrics:
+
+```python
+metrics = model.evaluate(val_dataset, task_name="forecasting")
+# Returns: {'mse': ..., 'mae': ..., 'mase': ..., 'mape': ..., 'rmse': ..., 'nrmse': ..., 'smape': ..., 'msis': ..., 'nd': ...}
+```
+
+<Note>
+LPTM requires specific data preprocessing. See the [example notebook](https://github.com/AdityaLab/Samay/blob/main/example/lptm.ipynb) for more details.
+</Note>
+
+## Example Notebook
+
+For a complete working example, see:
+- [example/lptm.ipynb](https://github.com/AdityaLab/Samay/blob/main/example/lptm.ipynb)
